@@ -9,16 +9,6 @@
                          :state (atom state)} nil))
   )
 
-(defn get-state
-  "Access the state within the context of an agent"
-  []
-  @(:state @(:agent @context2)))
-
-(defn set-state
-  "Update the state within the context of an agent"
-  [v]
-  (reset! (:state @(:agent @context2)) v))
-
 (defn create-context
   "Create an operational context for operating on an actor"
   ([a] (create-context a {}))
@@ -26,6 +16,18 @@
   ([a d ctx] (atom (conj d [:agent a]
                          [:src-ctx ctx]
                          [:unsent []]))))
+
+(defn- get-agent [] (:agent @context2))
+
+(defn get-state
+  "Access the state within the context of an agent"
+  []
+  (:state @(get-agent)))
+
+(defn reset-state
+  "Update the state within the context of an agent"
+  [v]
+  (reset! (get-state) v))
 
 (declare process-op)
 
@@ -43,9 +45,9 @@
 
 (defn- process-op
   "Process an incoming operation"
-  [old-state c2 op]
+  [old-state ctx op]
   (let [gate (:gate old-state)]
-    (def ^:dynamic context2 c2)
+    (def ^:dynamic context2 ctx)
     (while (not (compare-and-set! gate :idle :busy)))
     (eval op)
     (process-all-buffered)

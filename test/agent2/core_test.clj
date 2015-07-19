@@ -3,13 +3,13 @@
             [agent2.core :refer :all]))
 
 (defn inc-state []
-  (let [old (get-state)]
-    (set-state (+ 1 old)))
+  (let [old @(get-state)]
+    (reset-state (+ 1 old)))
   )
 
 (defn return-state
   []
-  (reply (get-state)))
+  (reply @(get-state)))
 
 (def a (agent2 2))
 (signal (agent2)
