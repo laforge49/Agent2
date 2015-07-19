@@ -27,11 +27,15 @@
                          [:src-ctx ctx]
                          [:unsent []]))))
 
-(defn- pass2all
+(defn- process-buffered
+  [msg]
+  (apply (first msg) (rest msg)))
+
+(defn- process-all-buffered
   "Pass all unsent requests and responses"
   []
   (let [ctx @context2]
-    (doall (map #(apply (first %) (rest %)) (:unsent ctx)))
+    (doall (map process-buffered (:unsent ctx)))
     (reset! context2 (assoc-in ctx [:unsent] []))
     ))
 
@@ -43,7 +47,7 @@
     (while (not (compare-and-set! gate :idle :busy)))
     (eval action)
     (reset! gate :idle)
-    (pass2all)
+    (process-all-buffered)
     )
   old-state)
 
@@ -86,7 +90,13 @@
     [v]
     (let [r (:return @context2)]
       (if r
-        (let [c @context2
-              ctx (:src-ctx c)
-              a (:target @ctx)]
-          (send a process2 ctx (list r v))))))
+        (let [context @context2
+              ctx (:src-ctx context)
+              a2 (:target @ctx)
+              unsent (:unsent context)
+              msg (list send a2
+                        process2
+                        ctx
+                        (list r v))
+              unsent (conj unsent msg)]
+          (reset! context2 (assoc-in context [:unsent] unsent))))))
