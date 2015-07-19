@@ -19,10 +19,10 @@
   [v]
   (reset! (:state @(:target @context2)) v))
 
-(defn ctx2
+(defn create-context
   "Create an operational context for operating on an actor"
-  ([a] (ctx2 a {}))
-  ([a d] (ctx2 a d context2))
+  ([a] (create-context a {}))
+  ([a d] (create-context a d context2))
   ([a d ctx] (atom (conj d [:target a]
                          [:src-ctx ctx]
                          [:unsent []]))))
@@ -39,17 +39,21 @@
     (reset! context2 (assoc-in ctx [:unsent] []))
     ))
 
-(defn- process2
+(defn- process-op
   "Process an incoming operation"
-  [old-state c2 action]
+  [old-state c2 op]
   (let [gate (:gate old-state)]
     (def ^:dynamic context2 c2)
     (while (not (compare-and-set! gate :idle :busy)))
-    (eval action)
+    (eval op)
     (reset! gate :idle)
     (process-all-buffered)
     )
   old-state)
+
+(defn- create-msg
+  [a2 ctx op]
+  (list send a2 process-op ctx op))
 
 (defn signal
   "An unbuffered 1-way message to operate on an actor.
@@ -60,7 +64,7 @@
   This function should use the get-state and set-state functions to
   access the state of agent a2."
   [a2 f]
-  (send a2 process2 (ctx2 a2) (list f)))
+  (send a2 process-op (create-context a2) (list f)))
 
 (defn request
   "A buffered 2-way message exchange to operate on an agent and get a reply.
@@ -77,26 +81,21 @@
   But processing is asynchronous--there is no thread blocking."
   [a2 f fr]
   (let [context @context2
+        ctx (create-context a2 {:reply fr})
         unsent (:unsent context)
-        msg (list send a2
-                  process2
-                  (ctx2 a2 {:return fr})
-                  (list f))
+        msg (create-msg a2 ctx (list f))
         unsent (conj unsent msg)]
     (reset! context2 (assoc-in context [:unsent] unsent))))
 
   (defn reply
     "Reply to a request via a buffered message."
     [v]
-    (let [r (:return @context2)]
+    (let [r (:reply @context2)]
       (if r
         (let [context @context2
               ctx (:src-ctx context)
               a2 (:target @ctx)
               unsent (:unsent context)
-              msg (list send a2
-                        process2
-                        ctx
-                        (list r v))
+              msg (create-msg a2 ctx (list r v))
               unsent (conj unsent msg)]
           (reset! context2 (assoc-in context [:unsent] unsent))))))
