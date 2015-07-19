@@ -6,7 +6,7 @@
   "Create an agent2"
   ([] (agent2 nil))
   ([state] (apply agent {:gate  (atom :idle)
-                 :state (atom state)} nil))
+                         :state (atom state)} nil))
   )
 
 (defn get-state
@@ -30,7 +30,10 @@
 (defn- pass2all
   "Pass all unsent requests and responses"
   []
-  (doall (map #(apply (first %) (rest %)) (:unsent @context2))))
+  (let [ctx @context2]
+    (doall (map #(apply (first %) (rest %)) (:unsent ctx)))
+    (reset! context2 (assoc-in ctx [:unsent] []))
+    ))
 
 (defn- process2
   "Process an incoming operation"
@@ -44,7 +47,7 @@
     )
   old-state)
 
-(defn signal2
+(defn signal
   "An unbuffered 1-way message to operate on an actor.
   a2 - the agent to be operated on.
   f - the function to operate on a2.
@@ -55,7 +58,7 @@
   [a2 f]
   (send a2 process2 (ctx2 a2) (list f)))
 
-(defn send2
+(defn request
   "A buffered 2-way message exchange to operate on an agent and get a reply.
   a2 - the agent to be operated on.
   f - the function which operates on a2.
@@ -69,14 +72,21 @@
   this function is called within the threadding context of the actor which called send2.
   But processing is asynchronous--there is no thread blocking."
   [a2 f fr]
-  (send a2 process2 (ctx2 a2 {:return fr}) (list f)))
+  (let [context @context2
+        unsent (:unsent context)
+        msg (list send a2
+                  process2
+                  (ctx2 a2 {:return fr})
+                  (list f))
+        unsent (conj unsent msg)]
+    (reset! context2 (assoc-in context [:unsent] unsent))))
 
-(defn return2
-  "Reply to a request via a buffered message."
-  [v]
-  (let [r (:return @context2)]
-    (if r
-      (let [c @context2
-            ctx (:src-ctx c)
-            a (:target @ctx)]
-        (send a process2 ctx (list r v))))))
+  (defn reply
+    "Reply to a request via a buffered message."
+    [v]
+    (let [r (:return @context2)]
+      (if r
+        (let [c @context2
+              ctx (:src-ctx c)
+              a (:target @ctx)]
+          (send a process2 ctx (list r v))))))

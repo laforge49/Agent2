@@ -9,13 +9,13 @@
 
 (defn return-state
   []
-  (return2 (get-state)))
+  (reply (get-state)))
 
 (def a (agent2 2))
-(signal2 (agent2)
+(signal (agent2)
          (fn []
-           (signal2 a inc-state)
-           (send2 a return-state
+           (signal a inc-state)
+           (request a return-state
                   (fn [v] (println "response:" v)
                     (shutdown-agents)
                     ))
