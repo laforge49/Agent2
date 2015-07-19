@@ -12,18 +12,18 @@
 (defn get-state
   "Access the state within the context of an agent"
   []
-  @(:state @(:target @context2)))
+  @(:state @(:agent @context2)))
 
 (defn set-state
   "Update the state within the context of an agent"
   [v]
-  (reset! (:state @(:target @context2)) v))
+  (reset! (:state @(:agent @context2)) v))
 
 (defn create-context
   "Create an operational context for operating on an actor"
   ([a] (create-context a {}))
   ([a d] (create-context a d context2))
-  ([a d ctx] (atom (conj d [:target a]
+  ([a d ctx] (atom (conj d [:agent a]
                          [:src-ctx ctx]
                          [:unsent []]))))
 
@@ -92,7 +92,7 @@
       (if r
         (let [context @context2
               ctx (:src-ctx context)
-              a2 (:target @ctx)
+              a2 (:agent @ctx)
               unsent (:unsent context)
               msg [a2 ctx (list r v)]
               unsent (conj unsent msg)]
