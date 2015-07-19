@@ -27,9 +27,11 @@
                          [:src-ctx ctx]
                          [:unsent []]))))
 
+(declare process-op)
+
 (defn- process-buffered
-  [msg]
-  (apply (first msg) (rest msg)))
+  [[a2 ctx op]]
+  (send a2 process-op ctx op))
 
 (defn- process-all-buffered
   "Pass all unsent requests and responses"
@@ -46,14 +48,10 @@
     (def ^:dynamic context2 c2)
     (while (not (compare-and-set! gate :idle :busy)))
     (eval op)
-    (reset! gate :idle)
     (process-all-buffered)
+    (reset! gate :idle)
     )
   old-state)
-
-(defn- create-msg
-  [a2 ctx op]
-  (list send a2 process-op ctx op))
 
 (defn signal
   "An unbuffered 1-way message to operate on an actor.
@@ -83,7 +81,7 @@
   (let [context @context2
         ctx (create-context a2 {:reply fr})
         unsent (:unsent context)
-        msg (create-msg a2 ctx (list f))
+        msg [a2 ctx (list f)]
         unsent (conj unsent msg)]
     (reset! context2 (assoc-in context [:unsent] unsent))))
 
@@ -96,6 +94,6 @@
               ctx (:src-ctx context)
               a2 (:target @ctx)
               unsent (:unsent context)
-              msg (create-msg a2 ctx (list r v))
+              msg [a2 ctx (list r v)]
               unsent (conj unsent msg)]
           (reset! context2 (assoc-in context [:unsent] unsent))))))
