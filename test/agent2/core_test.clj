@@ -4,7 +4,7 @@
 
 (defn inc-state []
   (let [old (get-state)]
-    (setState (+ 1 old)))
+    (set-state (+ 1 old)))
   )
 
 (defn return-state

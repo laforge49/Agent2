@@ -14,7 +14,7 @@
   []
   @(:state @(:target @context2)))
 
-(defn setState
+(defn set-state
   "Update the state within the context of an agent"
   [v]
   (reset! (:state @(:target @context2)) v))
@@ -32,7 +32,7 @@
   []
   (doall (map #(apply (first %) (rest %)) (:unsent @context2))))
 
-(defn- pass2
+(defn- process2
   "Process an incoming operation"
   [old-state c2 action]
   (let [gate (:gate old-state)]
@@ -53,7 +53,7 @@
   This function should use the get-state and set-state functions to
   access the state of agent a2."
   [a2 f]
-  (send a2 pass2 (ctx2 a2) (list f)))
+  (send a2 process2 (ctx2 a2) (list f)))
 
 (defn send2
   "A buffered 2-way message exchange to operate on an agent and get a reply.
@@ -69,7 +69,7 @@
   this function is called within the threadding context of the actor which called send2.
   But processing is asynchronous--there is no thread blocking."
   [a2 f fr]
-  (send a2 pass2 (ctx2 a2 {:return fr}) (list f)))
+  (send a2 process2 (ctx2 a2 {:return fr}) (list f)))
 
 (defn return2
   "Reply to a request via a buffered message."
@@ -79,4 +79,4 @@
       (let [c @context2
             ctx (:src-ctx c)
             a (:target @ctx)]
-        (send a pass2 ctx (list r v))))))
+        (send a process2 ctx (list r v))))))
