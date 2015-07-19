@@ -4,9 +4,10 @@
 
 (defn agent2
   "Create an agent2"
-  [state & options]
-  (apply agent {:gate (atom :idle)
-                :state (atom state)} options))
+  ([] (agent2 nil))
+  ([state] (apply agent {:gate  (atom :idle)
+                 :state (atom state)} nil))
+  )
 
 (defn get-state
   "Access the state within the context of an agent"
@@ -26,14 +27,10 @@
                          [:src-ctx ctx]
                          [:unsent []]))))
 
-(defn pass2all
+(defn- pass2all
   "Pass all unsent requests and responses"
   []
   (doall (map #(apply (first %) (rest %)) (:unsent @context2))))
-
-(defn set-context2
-  [ctx]
-  (def ^:dynamic context2 ctx))
 
 (defn- pass2
   "Process an incoming operation"
