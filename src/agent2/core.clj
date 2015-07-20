@@ -29,9 +29,9 @@
   [v]
   (reset! (get-state) v))
 
-(declare process-ops)
+(declare process-actions)
 
-(defn- process-op
+(defn- process-action
   [grouped-unsent [ctx op]]
   (def ^:dynamic context2 ctx)
   (eval op)
@@ -45,17 +45,16 @@
     grouped-unsent
   ))
 
-(defn- send-op
-  [[a2 ctx-ops]]
-  (send a2 process-ops ctx-ops))
+(defn- send-actions
+  [[a2 actions]]
+  (send a2 process-actions actions))
 
-(defn- process-ops
-  [old-state ctx-ops]
+(defn- process-actions
+  [old-state actions]
   (let [gate (:gate old-state)]
     (while (not (compare-and-set! gate :idle :busy)))
-    (dorun (map send-op
-                (reduce process-op {} ctx-ops)))
-    ;(dorun (map process-buffered (seq (ops-processing ctx-ops {}))))
+    (dorun (map send-actions
+                (reduce process-action {} actions)))
     (reset! gate :idle)
     old-state))
 
@@ -68,7 +67,7 @@
   This function should use the get-state and set-state functions to
   access the state of agent a2."
   [a2 f]
-  (send a2 process-ops (list [(create-context a2) (list f)])))
+  (send a2 process-actions (list [(create-context a2) (list f)])))
 
 (defn request
   "A buffered 2-way message exchange to operate on an agent and get a reply.
