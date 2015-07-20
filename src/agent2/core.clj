@@ -29,31 +29,35 @@
   [v]
   (reset! (get-state) v))
 
-(declare process-op)
-
-(defn- process-buffered
-  [[a2 ctx op]]
-  (send a2 process-op ctx op))
-
-(defn- process-all-buffered
-  "Pass all unsent requests and responses"
-  []
-  (let [ctx @context2]
-    (doall (map process-buffered (:unsent ctx)))
-    (reset! context2 (assoc-in ctx [:unsent] []))
-    ))
+(declare process-ops)
 
 (defn- process-op
-  "Process an incoming operation"
-  [old-state ctx op]
+  [grouped-unsent [ctx op]]
+  (def ^:dynamic context2 ctx)
+  (eval op)
+  (let [unsent (:unsent @ctx)
+        grouped-unsent
+        (reduce
+          #(assoc-in %1 [(first %2)] (second %2))
+          grouped-unsent
+          unsent)]
+    (reset! context2 (assoc-in @ctx [:unsent] []))
+    grouped-unsent
+  ))
+
+(defn- send-op
+  [[a2 ctx-ops]]
+  (send a2 process-ops ctx-ops))
+
+(defn- process-ops
+  [old-state ctx-ops]
   (let [gate (:gate old-state)]
-    (def ^:dynamic context2 ctx)
     (while (not (compare-and-set! gate :idle :busy)))
-    (eval op)
-    (process-all-buffered)
+    (dorun (map send-op
+                (reduce process-op {} ctx-ops)))
+    ;(dorun (map process-buffered (seq (ops-processing ctx-ops {}))))
     (reset! gate :idle)
-    )
-  old-state)
+    old-state))
 
 (defn signal
   "An unbuffered 1-way message to operate on an actor.
@@ -64,7 +68,7 @@
   This function should use the get-state and set-state functions to
   access the state of agent a2."
   [a2 f]
-  (send a2 process-op (create-context a2) (list f)))
+  (send a2 process-ops (list [(create-context a2) (list f)])))
 
 (defn request
   "A buffered 2-way message exchange to operate on an agent and get a reply.
@@ -83,19 +87,19 @@
   (let [context @context2
         ctx (create-context a2 {:reply fr})
         unsent (:unsent context)
-        msg [a2 ctx (list f)]
+        msg [a2 (list [ctx (list f)])]
         unsent (conj unsent msg)]
     (reset! context2 (assoc-in context [:unsent] unsent))))
 
-  (defn reply
-    "Reply to a request via a buffered message."
-    [v]
-    (let [r (:reply @context2)]
-      (if r
-        (let [context @context2
-              ctx (:src-ctx context)
-              a2 (:agent @ctx)
-              unsent (:unsent context)
-              msg [a2 ctx (list r v)]
-              unsent (conj unsent msg)]
-          (reset! context2 (assoc-in context [:unsent] unsent))))))
+(defn reply
+  "Reply to a request via a buffered message."
+  [v]
+  (let [r (:reply @context2)]
+    (if r
+      (let [context @context2
+            ctx (:src-ctx context)
+            a2 (:agent @ctx)
+            unsent (:unsent context)
+            msg [a2 (list [ctx (list r v)])]
+            unsent (conj unsent msg)]
+        (reset! context2 (assoc-in context [:unsent] unsent))))))
