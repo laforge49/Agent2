@@ -1,4 +1,5 @@
 (ns agent2.core)
+(ns agent2.core)
 
 ;;# *context-atom*
 
@@ -73,7 +74,7 @@ Returns the new context atom."
   to be handled."
 
   [exception-handler]
-  (def ^:dynamic *context-atom* (assoc @*context-atom* :exception-handler exception-handler))
+  (reset! *context-atom* (assoc @*context-atom* :exception-handler exception-handler))
   )
 
 (declare process-actions exception-reply)
@@ -110,7 +111,7 @@ Returns the new context atom."
   Returns grouped-unsent with any additional unsent actions grouped by destination agent."
 
     [grouped-unsent [ctx-atom op]]
-    (def ^:dynamic *context-atom* ctx-atom)
+    (binding [*context-atom* ctx-atom]
     (try
       (apply (first op) (get-agent-value) (rest op))
       (catch Exception e (invoke-exception-handler (get-agent-value) e)))
@@ -121,7 +122,7 @@ Returns the new context atom."
                            unsent)]                         ; merge the new requests/responses into grouped-unsent.
       (reset! *context-atom* (assoc-in @ctx-atom [:unsent] [])) ; clear :unsent in the context atom.
       grouped-unsent
-      ))
+      )))
 
   (defn- send-actions
     "Send all the buffered actions for a given agnet."
