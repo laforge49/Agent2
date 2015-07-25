@@ -1,104 +1,144 @@
 (ns agent2.core)
 
-(def ^:dynamic context2 nil)
+(def ^:dynamic *context-atom*
+  "Holds the operational context of the agent being operated on."
+  nil)
 
-(defn agent2
-  "Create an agent2"
-  ([] (agent2 nil))
-  ([state] (apply agent {:gate  (atom :idle)
-                         :state (atom state)} nil))
-  )
+(def ^:dynamic *agent-value*
+  "Current value of the agent being operated on."
+  nil)
 
-(defn create-context
-  "Create an operational context for operating on an actor"
-  ([a] (create-context a {}))
-  ([a d] (create-context a d context2))
-  ([a d ctx] (atom (conj d [:agent a]
-                         [:src-ctx ctx]
-                         [:unsent []]))))
+(defn create-context-atom
+  "Create an atom with the operational context for operating on an actor:
+  agent        - The agent to be operated on.
+  properties   - Properties assigned to the context, defaults to {}.
+  src-ctx-atom - The atom for the operational context creating the new context, defaults to *context-atom*.
 
-(defn- get-agent [] (:agent @context2))
+  Minimum initial properties:
+  :agent - The agent to be operated on.
+  :src-ctx-atom - The atom for the creating context.
+  :unsent - Buffered requests/responses which have not yet been sent.
 
-(defn get-state
-  "Access the state within the context of an agent"
+  Returns the new context atom."
+
+  ([agent] (create-context-atom agent {}))
+  ([agent properties] (create-context-atom agent properties *context-atom*))
+  ([agent properties src-ctx-atom] (atom (conj properties [:agent agent]
+                                               [:src-ctx-atom src-ctx-atom]
+                                               [:unsent []]))))
+
+(defn- get-agent
+  "Returns the agent being operated on from the *context-atom*."
+  [] (:agent @*context-atom*))
+
+(defn get-agent-value
+  "Returns the value of the agent being operated on.
+  This may be the current value of the agent, or the last value used with
+  set-agent-value."
   []
-  (:state @(get-agent)))
+  *agent-value*)
 
-(defn reset-state
-  "Update the state within the context of an agent"
-  [v]
-  (reset! (get-state) v))
+(defn set-agent-value
+  "Bind a new value to be given to the agent once the current operation is complete."
+  [value]
+  (def ^:dynamic *agent-value* value)
+  )
 
 (declare process-actions)
 
 (defn- process-action
-  [grouped-unsent [ctx op]]
-  (def ^:dynamic context2 ctx)
+  "Process a single action:
+  grouped-unsent - The actions not yet sent to other actors.
+  [ctx-atom op]  - The action to be processed, comprised of an operational context atom and an operation.
+
+  Returns grouped-unsent with any additional unsent actions grouped by destination agent."
+  [grouped-unsent [ctx-atom op]]
+  (def ^:dynamic *context-atom* ctx-atom)
   (eval op)
-  (let [unsent (:unsent @ctx)
-        grouped-unsent
-        (reduce
-          #(assoc-in %1 [(first %2)] (second %2))
-          grouped-unsent
-          unsent)]
-    (reset! context2 (assoc-in @ctx [:unsent] []))
+  (let [unsent (:unsent @ctx-atom)
+        grouped-unsent (reduce
+                         #(assoc-in %1 [(first %2)] (second %2))
+                         grouped-unsent
+                         unsent)] ; merge the new requests/responses into grouped-unsent.
+    (reset! *context-atom* (assoc-in @ctx-atom [:unsent] [])) ; clear :unsent in the context atom.
     grouped-unsent
-  ))
+    ))
 
 (defn- send-actions
-  [[a2 actions]]
-  (send a2 process-actions actions))
+  "Send all the buffered actions for a given agnet."
+  [[agent actions]]
+  (send agent process-actions actions))
 
 (defn- process-actions
-  [old-state actions]
-  (let [gate (:gate old-state)]
-    (while (not (compare-and-set! gate :idle :busy)))
-    (dorun (map send-actions
-                (reduce process-action {} actions)))
-    (reset! gate :idle)
-    old-state))
+  "This function is passed to an agent and subsequently invoked by same:
+  old-agent-value - The current value of the agent, provided by the agent itself.
+  actions - The actions passed with this function to an agent for operating on that agent.
+
+  After all the actions have been processed the buffered actions are sent to their
+  destination actors in groups.
+
+  Returns an updated value for the agent."
+
+  [old-agent-value actions]
+  (def ^:dynamic *agent-value* old-agent-value)
+  (dorun (map send-actions
+              (reduce process-action {} actions)))
+  *agent-value*)
 
 (defn signal
-  "An unbuffered 1-way message to operate on an actor.
-  a2 - the agent to be operated on.
-  f - the function to operate on a2.
+  "An unbuffered, 1-way message to operate on an actor.
+  agent - the agent to be operated on.
+  f - the function to operate on the agent.
 
   The f function takes no arguments and its return value is ignored.
-  This function should use the get-state and set-state functions to
-  access the state of agent a2."
-  [a2 f]
-  (send a2 process-actions (list [(create-context a2) (list f)])))
+  This function should use the get-agent-value and set-agent-value functions to
+  access the state of the agent.
+
+  Signals are unbuffered and are immediately passed to the target agent via the send function.
+  The signal function can be invoked from anywhere as it does not itself use an operating context.
+  Signals should be used in place of send because of the added support for request/reply."
+  [agent f]
+  (send agent process-actions (list [(create-context-atom agent) (list f)])))
 
 (defn request
-  "A buffered 2-way message exchange to operate on an agent and get a reply.
-  a2 - the agent to be operated on.
-  f - the function which operates on a2.
-  fr - the function which processes the response.
+  "A buffered 2-way message exchange to operate on an agent and get a reply without blocking:
+  agent - The agent to be operated on.
+  f     - The function which operates on the agent.
+  fr    - The callback function which processes the response.
 
-  The f function takes no arguments and its return value is ignored.
-  This function should use the get-state and set-state functions to
-  access the state of agent a2. A reply is sent by calling the return2 function.
+  The function f takes no arguments and its return value is ignored.
+  This function should use the get-agent-value and set-agent-value functions to
+  access the value of the agent being operated on. A response is returned by calling the reply function.
 
-  The fr function also takes one argument, the value sent back by the return2 function.
-  this function is called within the threadding context of the actor which called send2.
-  But processing is asynchronous--there is no thread blocking."
-  [a2 f fr]
-  (let [context @context2
-        ctx (create-context a2 {:reply fr})
+  The fr function also takes one argument, the response returned by the reply function.
+  This function is called within the threadding context of the actor which invoked request.
+  But processing is asynchronous--there is no thread blocking. Rather, the processing of requests
+  and responses are interleaved. Isolation then is an issue that must be managed by the application.
+
+  The request and reply functions can only be used when processing a signal, request or response. Only signals
+  then can be used elsewhere."
+
+  [agent f fr]
+  (let [context @*context-atom*
+        ctx-atom (create-context-atom agent {:reply fr})
         unsent (:unsent context)
-        msg [a2 (list [ctx (list f)])]
+        msg [agent (list [ctx-atom (list f)])]
         unsent (conj unsent msg)]
-    (reset! context2 (assoc-in context [:unsent] unsent))))
+    (reset! *context-atom* (assoc-in context [:unsent] unsent))))
 
 (defn reply
-  "Reply to a request via a buffered message."
+  "Reply to a request via a buffered message.
+  v - The response.
+
+  No response is sent if the operating context is for a signal rather than for a request."
+
   [v]
-  (let [r (:reply @context2)]
-    (if r
-      (let [context @context2
-            ctx (:src-ctx context)
-            a2 (:agent @ctx)
+  (let [context @*context-atom*
+        fr (:reply context)]
+    (if fr
+      (let [src-ctx-atom (:src-ctx-atom context)
+            src-agent (:agent @src-ctx-atom)
             unsent (:unsent context)
-            msg [a2 (list [ctx (list r v)])]
+            msg [src-agent (list [src-ctx-atom (list fr v)])]
             unsent (conj unsent msg)]
-        (reset! context2 (assoc-in context [:unsent] unsent))))))
+        (reset! *context-atom* (assoc-in context [:unsent] unsent))))))
