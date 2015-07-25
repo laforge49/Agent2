@@ -226,5 +226,5 @@ Returns the new context atom."
               unsent (:unsent context)
               msg [src-agent (list [src-ctx-atom (list exception-processor exception)])]
               unsent (conj unsent msg)]
-          (reset! *context-atom* (assoc-in context [:unsent] unsent)))
+          (reset! *context-atom* (assoc context :unsent unsent)))
         (throw exception))))
