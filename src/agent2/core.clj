@@ -25,6 +25,13 @@ Minimum initial properties:
      :unsent       - Buffered requests/responses which
                      have not yet been sent.
 
+Additional properties:
+
+     :reply             - The callback function for
+                          processing a response.
+     :exception-handler - A function for processing an
+                          exception.
+
 Returns the new context atom."
 
   ([agent] (create-context-atom agent {}))
@@ -44,7 +51,7 @@ Returns the new context atom."
   []
   *agent-value*)
 
-(defn set-agent-value
+(defn set-agent-value!
   "Bind a new value to be given to the agent once the current operation is complete."
   [value]
   (def ^:dynamic *agent-value* value)

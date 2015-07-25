@@ -3,7 +3,7 @@
             [agent2.core :refer :all]))
 
 (defn inc-state [agent-value]
-  (set-agent-value (+ 1 agent-value))
+  (set-agent-value! (+ 1 agent-value))
   )
 
 (defn return-state
