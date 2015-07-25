@@ -54,8 +54,13 @@ and responses are interleaved. Isolation then is an issue that must be managed b
 
 The request and reply functions can only be used when processing a signal, request or response. Only signals
 then can be used elsewhere.</pre></div></div><div class="public anchor" id="var-set-agent-value.21"><h3>set-agent-value!</h3><div class="usage"><code>(set-agent-value! value)</code></div><div class="doc"><pre class="plaintext">Bind a new value to be given to the agent once the current operation is complete.
-</pre></div></div><div class="public anchor" id="var-set-exception-handler.21"><h3>set-exception-handler!</h3><div class="usage"><code>(set-exception-handler! exception-handler)</code></div><div class="doc"><pre class="plaintext">Bind a new exception handler function to the operating context.
-</pre></div></div><div class="public anchor" id="var-signal"><h3>signal</h3><div class="usage"><code>(signal agent f &amp; args)</code></div><div class="doc"><pre class="plaintext">An unbuffered, 1-way message to operate on an agent.
+</pre></div></div><div class="public anchor" id="var-set-exception-handler.21"><h3>set-exception-handler!</h3><div class="usage"><code>(set-exception-handler! exception-handler)</code></div><div class="doc"><pre class="plaintext">Bind a new exception handler function to the operating context:
+
+   exception-handler - The function which will handle
+                       any excptions.
+
+The exception handler function must have two arguments, the agent value and the exception
+to be handled.</pre></div></div><div class="public anchor" id="var-signal"><h3>signal</h3><div class="usage"><code>(signal agent f &amp; args)</code></div><div class="doc"><pre class="plaintext">An unbuffered, 1-way message to operate on an agent.
 
      agent - The agent to be operated on.
      f     - The function to operate on the agent.
@@ -66,5 +71,5 @@ the remaining arguments. Its return value is ignored. This function should use t
 function to update the state of the agent.
 
 Signals are unbuffered and are immediately passed to the target agent via the send function.
-The signal function can be invoked from anywhere as it does not itself use an operating context.
-The signal function should be used in place of send because of the added support for request/reply.</pre></div></div></div></body></html>
+The signal function can be invoked from anywhere as it does not itself use an operating context
+and should be used in place of send because of the added support for request/reply.</pre></div></div></div></body></html>

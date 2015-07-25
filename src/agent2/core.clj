@@ -64,7 +64,14 @@ Returns the new context atom."
   (:excption-handler @*context-atom*))
 
 (defn set-exception-handler!
-  "Bind a new exception handler function to the operating context."
+  "Bind a new exception handler function to the operating context:
+
+     exception-handler - The function which will handle
+                         any excptions.
+
+  The exception handler function must have two arguments, the agent value and the exception
+  to be handled."
+
   [exception-handler]
   (def ^:dynamic *context-atom* (assoc @*context-atom* :exception-handler exception-handler))
   )
@@ -74,7 +81,12 @@ Returns the new context atom."
 (defn- invoke-exception-handler
   "Invokes the exception handler, if any, to handle the exception. If there is no exception
   handler, or if the exception handler itself throws an exception, pass the original exception
-  to the source."
+  to the source:
+
+     agent-value - The value of the agent.
+     exception   - The exception to be passed to the
+                   exception handler."
+
   [agent-value exception]
   (if (get-exception-handler)
     (try
@@ -85,8 +97,8 @@ Returns the new context atom."
   (defn- process-action
     "Process a single action:
 
-       grouped-unsent - The actions not yet sent to other
-                        agents.
+       grouped-unsent - The actions not yet sent to
+                        other agents.
        [ctx-atom op]  - The action to be processed,
                         comprised of an operational
                         context atom and an operation.
@@ -148,8 +160,8 @@ Returns the new context atom."
   function to update the state of the agent.
 
   Signals are unbuffered and are immediately passed to the target agent via the send function.
-  The signal function can be invoked from anywhere as it does not itself use an operating context.
-  The signal function should be used in place of send because of the added support for request/reply."
+  The signal function can be invoked from anywhere as it does not itself use an operating context
+  and should be used in place of send because of the added support for request/reply."
 
     [agent f & args]
     (send agent process-actions (list [(create-context-atom agent) (cons f args)])))
@@ -205,7 +217,8 @@ Returns the new context atom."
     "Processes an exception response by simply rethrowing the exception:
 
        agent-value - The value of the local context.
-       exception   - The exception thrown while processing a request."
+       exception   - The exception thrown while
+                     processing a request."
 
     [agent-value exception]
     (throw exception))
