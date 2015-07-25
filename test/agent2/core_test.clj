@@ -2,22 +2,22 @@
   (:require [clojure.test :refer :all]
             [agent2.core :refer :all]))
 
-(defn inc-state []
-  (let [old (get-agent-value)]
-    (set-agent-value (+ 1 old)))
+(defn inc-state [agent-value]
+  (set-agent-value (+ 1 agent-value))
   )
 
 (defn return-state
-  []
-  (reply (get-agent-value)))
+  [agent-value]
+  (reply agent-value))
 
 (def a (agent 2))
 (signal (agent nil)
-         (fn []
-           (signal a inc-state)
-           (request a return-state
-                  (fn [v] (println "response:" v)
-                    (shutdown-agents)
-                    ))
-           )
-         )
+        (fn [agent-value]
+          (signal a inc-state)
+          (request a return-state ()
+                   (fn [agent-value v]
+                     (println "response:" v)
+                     (shutdown-agents)
+                     ))
+          )
+        )
