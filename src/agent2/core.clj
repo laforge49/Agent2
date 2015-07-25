@@ -11,17 +11,19 @@
 (defn create-context-atom
   "Create an atom with the operational context for operating on an actor:
 
-  - agent        - The agent to be operated on.
-  - properties   - Properties assigned to the context,
-  defaults to {}.
-  - src-ctx-atom - The atom for the operational context creating the new context,
-  defaults to *context-atom*.
+     agent        - The agent to be operated on.
+     properties   - Properties assigned to the context,
+                    defaults to {}.
+     src-ctx-atom - The atom for the operational context
+                    creating the new context, defaults
+                    to *context-atom*.
 
 Minimum initial properties:
 
-  - :agent        - The agent to be operated on.
-  - :src-ctx-atom - The atom for the creating context.
-  - :unsent       - Buffered requests/responses which have not yet been sent.
+     :agent        - The agent to be operated on.
+     :src-ctx-atom - The atom for the creating context.
+     :unsent       - Buffered requests/responses which
+                     have not yet been sent.
 
 Returns the new context atom."
 
@@ -53,8 +55,11 @@ Returns the new context atom."
 (defn- process-action
   "Process a single action:
 
-  - grouped-unsent - The actions not yet sent to other actors.
-  - [ctx-atom op]  - The action to be processed, comprised of an operational context atom and an operation.
+     grouped-unsent - The actions not yet sent to other
+                      actors.
+     [ctx-atom op]  - The action to be processed,
+                      comprised of an operational
+                      context atom and an operation.
 
 Returns grouped-unsent with any additional unsent actions grouped by destination agent."
 
@@ -78,8 +83,11 @@ Returns grouped-unsent with any additional unsent actions grouped by destination
 (defn- process-actions
   "This function is passed to an agent and subsequently invoked by same:
 
-  - old-agent-value - The current value of the agent, provided by the agent itself.
-  - actions - The actions passed with this function to an agent for operating on that agent.
+     old-agent-value - The current value of the agent,
+                       provided by the agent itself.
+     actions         - The actions passed with this
+                       function to an agent for
+                       operating on that agent.
 
 After all the actions have been processed the buffered actions are sent to their
 destination actors in groups.
@@ -95,8 +103,8 @@ Returns an updated value for the agent."
 (defn signal
   "An unbuffered, 1-way message to operate on an actor.
 
-  - agent - the agent to be operated on.
-  - f - the function to operate on the agent.
+     agent - The agent to be operated on.
+     f     - The function to operate on the agent.
 
 The f function takes no arguments and its return value is ignored.
 This function should use the get-agent-value and set-agent-value functions to
@@ -112,9 +120,10 @@ Signals should be used in place of send because of the added support for request
 (defn request
   "A buffered 2-way message exchange to operate on an agent and get a reply without blocking:
 
-  - agent - The agent to be operated on.
-  - f     - The function which operates on the agent.
-  - fr    - The callback function which processes the response.
+     agent - The agent to be operated on.
+     f     - The function which operates on the agent.
+     fr    - The callback function which processes the
+             response.
 
 The function f takes no arguments and its return value is ignored.
 This function should use the get-agent-value and set-agent-value functions to
@@ -139,7 +148,7 @@ then can be used elsewhere."
 (defn reply
   "Reply to a request via a buffered message:
 
-  - v - The response.
+     v - The response.
 
 No response is sent if the operating context is for a signal rather than for a request."
 
