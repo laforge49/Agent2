@@ -2873,17 +2873,25 @@ net.brehaut.ClojureTools = (function (SH) {
 </td><td class="codes"><pre class="brush: clojure">(def ^:dynamic *context-atom*
   nil)</pre></td></tr><tr><td class="docs"><p>Current value of the agent being operated on.</p>
 </td><td class="codes"><pre class="brush: clojure">(def ^:dynamic *agent-value*
-  nil)</pre></td></tr><tr><td class="docs"><p>Create an atom with the operational context for operating on an actor:
-  agent        - The agent to be operated on.
-  properties   - Properties assigned to the context, defaults to {}.
-  src-ctx-atom - The atom for the operational context creating the new context, defaults to <em>context-atom</em>.</p>
+  nil)</pre></td></tr><tr><td class="docs"><p>Create an atom with the operational context for operating on an actor:</p>
 
-<p>  Minimum initial properties:
-  :agent - The agent to be operated on.
-  :src-ctx-atom - The atom for the creating context.
-  :unsent - Buffered requests/responses which have not yet been sent.</p>
+<ul>
+<li>agent        - The agent to be operated on.</li>
+<li>properties   - Properties assigned to the context,
+defaults to {}.</li>
+<li>src-ctx-atom - The atom for the operational context creating the new context,
+defaults to <em>context-atom</em>.</li>
+</ul>
 
-<p>  Returns the new context atom.</p>
+<p>Minimum initial properties:</p>
+
+<ul>
+<li>:agent        - The agent to be operated on.</li>
+<li>:src-ctx-atom - The atom for the creating context.</li>
+<li>:unsent       - Buffered requests/responses which have not yet been sent.</li>
+</ul>
+
+<p>Returns the new context atom.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn create-context-atom
   ([agent] (create-context-atom agent {}))
   ([agent properties] (create-context-atom agent properties *context-atom*))
@@ -2900,11 +2908,14 @@ net.brehaut.ClojureTools = (function (SH) {
 </td><td class="codes"><pre class="brush: clojure">(defn set-agent-value
   [value]
   (def ^:dynamic *agent-value* value))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(declare process-actions)</pre></td></tr><tr><td class="docs"><p>Process a single action:
-  grouped-unsent - The actions not yet sent to other actors.
-  [ctx-atom op]  - The action to be processed, comprised of an operational context atom and an operation.</p>
+</td><td class="codes"><pre class="brush: clojure">(declare process-actions)</pre></td></tr><tr><td class="docs"><p>Process a single action:</p>
 
-<p>  Returns grouped-unsent with any additional unsent actions grouped by destination agent.</p>
+<ul>
+<li>grouped-unsent - The actions not yet sent to other actors.</li>
+<li>[ctx-atom op]  - The action to be processed, comprised of an operational context atom and an operation.</li>
+</ul>
+
+<p>Returns grouped-unsent with any additional unsent actions grouped by destination agent.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- process-action
   [grouped-unsent [ctx-atom op]]
   (def ^:dynamic *context-atom* ctx-atom)
@@ -2913,53 +2924,62 @@ net.brehaut.ClojureTools = (function (SH) {
         grouped-unsent (reduce
                          #(assoc-in %1 [(first %2)] (second %2))
                          grouped-unsent
-                         unsent)] ; merge the new requests/responses into grouped-unsent.
+                         unsent)]                           ; merge the new requests/responses into grouped-unsent.
     (reset! *context-atom* (assoc-in @ctx-atom [:unsent] [])) ; clear :unsent in the context atom.
     grouped-unsent))</pre></td></tr><tr><td class="docs"><p>Send all the buffered actions for a given agnet.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- send-actions
   [[agent actions]]
-  (send agent process-actions actions))</pre></td></tr><tr><td class="docs"><p>This function is passed to an agent and subsequently invoked by same:
-  old-agent-value - The current value of the agent, provided by the agent itself.
-  actions - The actions passed with this function to an agent for operating on that agent.</p>
+  (send agent process-actions actions))</pre></td></tr><tr><td class="docs"><p>This function is passed to an agent and subsequently invoked by same:</p>
 
-<p>  After all the actions have been processed the buffered actions are sent to their
-  destination actors in groups.</p>
+<ul>
+<li>old-agent-value - The current value of the agent, provided by the agent itself.</li>
+<li>actions - The actions passed with this function to an agent for operating on that agent.</li>
+</ul>
 
-<p>  Returns an updated value for the agent.</p>
+<p>After all the actions have been processed the buffered actions are sent to their
+destination actors in groups.</p>
+
+<p>Returns an updated value for the agent.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- process-actions
   [old-agent-value actions]
   (def ^:dynamic *agent-value* old-agent-value)
   (dorun (map send-actions
               (reduce process-action {} actions)))
-  *agent-value*)</pre></td></tr><tr><td class="docs"><p>An unbuffered, 1-way message to operate on an actor.
-  agent - the agent to be operated on.
-  f - the function to operate on the agent.</p>
+  *agent-value*)</pre></td></tr><tr><td class="docs"><p>An unbuffered, 1-way message to operate on an actor.</p>
 
-<p>  The f function takes no arguments and its return value is ignored.
-  This function should use the get-agent-value and set-agent-value functions to
-  access the state of the agent.</p>
+<ul>
+<li>agent - the agent to be operated on.</li>
+<li>f - the function to operate on the agent.</li>
+</ul>
 
-<p>  Signals are unbuffered and are immediately passed to the target agent via the send function.
-  The signal function can be invoked from anywhere as it does not itself use an operating context.
-  Signals should be used in place of send because of the added support for request/reply.</p>
+<p>The f function takes no arguments and its return value is ignored.
+This function should use the get-agent-value and set-agent-value functions to
+access the state of the agent.</p>
+
+<p>Signals are unbuffered and are immediately passed to the target agent via the send function.
+The signal function can be invoked from anywhere as it does not itself use an operating context.
+Signals should be used in place of send because of the added support for request/reply.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn signal
   [agent f]
-  (send agent process-actions (list [(create-context-atom agent) (list f)])))</pre></td></tr><tr><td class="docs"><p>A buffered 2-way message exchange to operate on an agent and get a reply without blocking:
-  agent - The agent to be operated on.
-  f     - The function which operates on the agent.
-  fr    - The callback function which processes the response.</p>
+  (send agent process-actions (list [(create-context-atom agent) (list f)])))</pre></td></tr><tr><td class="docs"><p>A buffered 2-way message exchange to operate on an agent and get a reply without blocking:</p>
 
-<p>  The function f takes no arguments and its return value is ignored.
-  This function should use the get-agent-value and set-agent-value functions to
-  access the value of the agent being operated on. A response is returned by calling the reply function.</p>
+<ul>
+<li>agent - The agent to be operated on.</li>
+<li>f     - The function which operates on the agent.</li>
+<li>fr    - The callback function which processes the response.</li>
+</ul>
 
-<p>  The fr function also takes one argument, the response returned by the reply function.
-  This function is called within the threadding context of the actor which invoked request.
-  But processing is asynchronous--there is no thread blocking. Rather, the processing of requests
-  and responses are interleaved. Isolation then is an issue that must be managed by the application.</p>
+<p>The function f takes no arguments and its return value is ignored.
+This function should use the get-agent-value and set-agent-value functions to
+access the value of the agent being operated on. A response is returned by calling the reply function.</p>
 
-<p>  The request and reply functions can only be used when processing a signal, request or response. Only signals
-  then can be used elsewhere.</p>
+<p>The fr function also takes one argument, the response returned by the reply function.
+This function is called within the threadding context of the actor which invoked request.
+But processing is asynchronous--there is no thread blocking. Rather, the processing of requests
+and responses are interleaved. Isolation then is an issue that must be managed by the application.</p>
+
+<p>The request and reply functions can only be used when processing a signal, request or response. Only signals
+then can be used elsewhere.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn request
   [agent f fr]
   (let [context @*context-atom*
@@ -2967,10 +2987,13 @@ net.brehaut.ClojureTools = (function (SH) {
         unsent (:unsent context)
         msg [agent (list [ctx-atom (list f)])]
         unsent (conj unsent msg)]
-    (reset! *context-atom* (assoc-in context [:unsent] unsent))))</pre></td></tr><tr><td class="docs"><p>Reply to a request via a buffered message.
-  v - The response.</p>
+    (reset! *context-atom* (assoc-in context [:unsent] unsent))))</pre></td></tr><tr><td class="docs"><p>Reply to a request via a buffered message:</p>
 
-<p>  No response is sent if the operating context is for a signal rather than for a request.</p>
+<ul>
+<li>v - The response.</li>
+</ul>
+
+<p>No response is sent if the operating context is for a signal rather than for a request.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn reply
   [v]
   (let [context @*context-atom*

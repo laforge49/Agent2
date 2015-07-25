@@ -10,16 +10,20 @@
 
 (defn create-context-atom
   "Create an atom with the operational context for operating on an actor:
-  agent        - The agent to be operated on.
-  properties   - Properties assigned to the context, defaults to {}.
-  src-ctx-atom - The atom for the operational context creating the new context, defaults to *context-atom*.
 
-  Minimum initial properties:
-  :agent - The agent to be operated on.
-  :src-ctx-atom - The atom for the creating context.
-  :unsent - Buffered requests/responses which have not yet been sent.
+  - agent        - The agent to be operated on.
+  - properties   - Properties assigned to the context,
+  defaults to {}.
+  - src-ctx-atom - The atom for the operational context creating the new context,
+  defaults to *context-atom*.
 
-  Returns the new context atom."
+Minimum initial properties:
+
+  - :agent        - The agent to be operated on.
+  - :src-ctx-atom - The atom for the creating context.
+  - :unsent       - Buffered requests/responses which have not yet been sent.
+
+Returns the new context atom."
 
   ([agent] (create-context-atom agent {}))
   ([agent properties] (create-context-atom agent properties *context-atom*))
@@ -48,10 +52,12 @@
 
 (defn- process-action
   "Process a single action:
-  grouped-unsent - The actions not yet sent to other actors.
-  [ctx-atom op]  - The action to be processed, comprised of an operational context atom and an operation.
 
-  Returns grouped-unsent with any additional unsent actions grouped by destination agent."
+  - grouped-unsent - The actions not yet sent to other actors.
+  - [ctx-atom op]  - The action to be processed, comprised of an operational context atom and an operation.
+
+Returns grouped-unsent with any additional unsent actions grouped by destination agent."
+
   [grouped-unsent [ctx-atom op]]
   (def ^:dynamic *context-atom* ctx-atom)
   (eval op)
@@ -59,7 +65,7 @@
         grouped-unsent (reduce
                          #(assoc-in %1 [(first %2)] (second %2))
                          grouped-unsent
-                         unsent)] ; merge the new requests/responses into grouped-unsent.
+                         unsent)]                           ; merge the new requests/responses into grouped-unsent.
     (reset! *context-atom* (assoc-in @ctx-atom [:unsent] [])) ; clear :unsent in the context atom.
     grouped-unsent
     ))
@@ -71,13 +77,14 @@
 
 (defn- process-actions
   "This function is passed to an agent and subsequently invoked by same:
-  old-agent-value - The current value of the agent, provided by the agent itself.
-  actions - The actions passed with this function to an agent for operating on that agent.
 
-  After all the actions have been processed the buffered actions are sent to their
-  destination actors in groups.
+  - old-agent-value - The current value of the agent, provided by the agent itself.
+  - actions - The actions passed with this function to an agent for operating on that agent.
 
-  Returns an updated value for the agent."
+After all the actions have been processed the buffered actions are sent to their
+destination actors in groups.
+
+Returns an updated value for the agent."
 
   [old-agent-value actions]
   (def ^:dynamic *agent-value* old-agent-value)
@@ -87,36 +94,39 @@
 
 (defn signal
   "An unbuffered, 1-way message to operate on an actor.
-  agent - the agent to be operated on.
-  f - the function to operate on the agent.
 
-  The f function takes no arguments and its return value is ignored.
-  This function should use the get-agent-value and set-agent-value functions to
-  access the state of the agent.
+  - agent - the agent to be operated on.
+  - f - the function to operate on the agent.
 
-  Signals are unbuffered and are immediately passed to the target agent via the send function.
-  The signal function can be invoked from anywhere as it does not itself use an operating context.
-  Signals should be used in place of send because of the added support for request/reply."
+The f function takes no arguments and its return value is ignored.
+This function should use the get-agent-value and set-agent-value functions to
+access the state of the agent.
+
+Signals are unbuffered and are immediately passed to the target agent via the send function.
+The signal function can be invoked from anywhere as it does not itself use an operating context.
+Signals should be used in place of send because of the added support for request/reply."
+
   [agent f]
   (send agent process-actions (list [(create-context-atom agent) (list f)])))
 
 (defn request
   "A buffered 2-way message exchange to operate on an agent and get a reply without blocking:
-  agent - The agent to be operated on.
-  f     - The function which operates on the agent.
-  fr    - The callback function which processes the response.
 
-  The function f takes no arguments and its return value is ignored.
-  This function should use the get-agent-value and set-agent-value functions to
-  access the value of the agent being operated on. A response is returned by calling the reply function.
+  - agent - The agent to be operated on.
+  - f     - The function which operates on the agent.
+  - fr    - The callback function which processes the response.
 
-  The fr function also takes one argument, the response returned by the reply function.
-  This function is called within the threadding context of the actor which invoked request.
-  But processing is asynchronous--there is no thread blocking. Rather, the processing of requests
-  and responses are interleaved. Isolation then is an issue that must be managed by the application.
+The function f takes no arguments and its return value is ignored.
+This function should use the get-agent-value and set-agent-value functions to
+access the value of the agent being operated on. A response is returned by calling the reply function.
 
-  The request and reply functions can only be used when processing a signal, request or response. Only signals
-  then can be used elsewhere."
+The fr function also takes one argument, the response returned by the reply function.
+This function is called within the threadding context of the actor which invoked request.
+But processing is asynchronous--there is no thread blocking. Rather, the processing of requests
+and responses are interleaved. Isolation then is an issue that must be managed by the application.
+
+The request and reply functions can only be used when processing a signal, request or response. Only signals
+then can be used elsewhere."
 
   [agent f fr]
   (let [context @*context-atom*
@@ -127,10 +137,11 @@
     (reset! *context-atom* (assoc-in context [:unsent] unsent))))
 
 (defn reply
-  "Reply to a request via a buffered message.
-  v - The response.
+  "Reply to a request via a buffered message:
 
-  No response is sent if the operating context is for a signal rather than for a request."
+  - v - The response.
+
+No response is sent if the operating context is for a signal rather than for a request."
 
   [v]
   (let [context @*context-atom*
