@@ -113,7 +113,7 @@ function to update the state of the agent.
 
 Signals are unbuffered and are immediately passed to the target agent via the send function.
 The signal function can be invoked from anywhere as it does not itself use an operating context.
-The signal method should be used in place of send because of the added support for request/reply."
+The signal function should be used in place of send because of the added support for request/reply."
 
   [agent f & args]
   (send agent process-actions (list [(create-context-atom agent) (cons f args)])))
