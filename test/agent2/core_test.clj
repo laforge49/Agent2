@@ -10,17 +10,19 @@
   [agent-value]
   (reply agent-value))
 
-(def a (agent 2))
-(def p (promise))
-(signal (agent nil)
-        (fn [_]
-          (signal a inc-state)
-          (request a return-state ()
-                   (fn [_ v]
-                     (deliver p v)
-                     ))
+(comment
+  (def a (agent 2))
+  (def p (promise))
+  (signal (agent nil)
+          (fn [_]
+            (signal a inc-state)
+            (request a return-state ()
+                     (fn [_ v]
+                       (deliver p v)
+                       ))
+            )
           )
-        )
-
-(println "response:" (deref p 200 nil) "\n")
-(shutdown-agents)
+  (def q (deref p 1200 nil))
+  (deftest basic
+    (is (= 3 q)))
+  )
