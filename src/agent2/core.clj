@@ -9,7 +9,7 @@
 (def ^{:dynamic true, :private true} *agent-value*
   "Current value of the agent being operated on.")
 
-(defn create-context-atom
+(defn- create-context-atom
   "Create an atom with the operational context for operating on an agent:
 
      agent        - The agent to be operated on.
