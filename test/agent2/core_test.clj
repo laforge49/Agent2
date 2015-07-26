@@ -11,13 +11,17 @@
   (reply agent-value))
 
 (def a (agent 2))
+(def p (promise))
 (signal (agent nil)
-        (fn [agent-value]
+        (fn [agent-value prom]
           (signal a inc-state)
           (request a return-state ()
                    (fn [agent-value v]
-                     (println "response:" v)
-                     (shutdown-agents)
+                     (deliver prom v)
                      ))
           )
+        p
         )
+
+(println "response:" (deref p 200 nil) "\n")
+(shutdown-agents)
