@@ -13,10 +13,10 @@
 (def a (agent 2))
 (def p (promise))
 (signal (agent nil)
-        (fn [agent-value prom]
+        (fn [_ prom]
           (signal a inc-state)
           (request a return-state ()
-                   (fn [agent-value v]
+                   (fn [_ v]
                      (deliver prom v)
                      ))
           )
