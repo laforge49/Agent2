@@ -247,3 +247,23 @@ Rather, the exception is simply thrown."
         )
       (throw exception)
       )))
+
+(comment
+  (defn- forward-request [_ p ag f args]
+    (set-exception-handler!
+      (fn [_ e]
+        (deliver p e)))
+    (request ag f args
+             (fn [_ v]
+               (deliver p v)
+               ))
+    )
+
+  (defn agent-future
+    [ag f & args]
+;    (println "agent future" @ag)
+    (let [p (promise)]
+      (signal (agent nil) forward-request p ag f args)
+      p
+      ))
+  )
