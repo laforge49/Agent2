@@ -75,3 +75,41 @@
   (deftest signal-exception-handler-5
     (is (= "got exception" q5)))
 ;  )
+
+;(comment
+(def p6 (promise))
+(defn eh6 [a e]
+  (deliver p6 "got error"))
+(defn exh6 [_ _]
+  (deliver p6 "got exception"))
+(def a6 (agent true :error-handler eh6))
+(def b6 (agent "Fred"))
+(signal a6
+        (fn [agent-value]
+          (set-exception-handler! exh6)
+          (request b6
+                   dbz ()
+                   '(println 99))))
+(def q6 (deref p6 200 "timeout"))
+(deftest request-error-handler-6
+  (is (= q6 "got exception")))
+;  )
+
+;(comment
+(def p7 (promise))
+(defn eh7 [a e]
+  (deliver p7 "got error"))
+(defn exh7 [_ _]
+  (deliver p7 "got exception"))
+(def a7 (agent true :error-handler eh7))
+(def b7 (agent "Fred"))
+(signal a7
+        (fn [agent-value]
+          (set-exception-handler! exh7)
+          (request b7
+                   (fn [_] (reply 42)) ()
+                   dbzr)))
+(def q7 (deref p7 200 nil))
+(deftest reply-error-handler-7
+  (is (= q7 "got exception")))
+;  )

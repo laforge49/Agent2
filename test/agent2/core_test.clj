@@ -10,7 +10,7 @@
   [agent-value]
   (reply agent-value))
 
-(comment
+;(comment
   (def a (agent 2))
   (def p (promise))
   (signal (agent nil)
@@ -25,4 +25,4 @@
   (def q (deref p 1200 nil))
   (deftest basic
     (is (= 3 q)))
-  )
+;  )
