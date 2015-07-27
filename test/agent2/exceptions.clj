@@ -8,19 +8,18 @@
 (defn dbzr [_ _]
   (/ 0 0))
 
-(comment
+;(comment
   (def p1 (promise))
   (defn eh1 [a e]
-    ;  (println e)
     (deliver p1 true))
   (def a1 (agent true :error-handler eh1))
   (send a1 dbz)
   (def q1 (deref p1 200 false))
   (deftest agent-error-handler-1
     (is (= true q1)))
-  )
+;  )
 
-(comment
+;(comment
   (def p2 (promise))
   (defn eh2 [a e]
     (deliver p2 true)
@@ -30,12 +29,11 @@
   (def q2 (deref p2 200 false))
   (deftest signal-error-handler-2
     (is (= true q2)))
-  )
+;  )
 
-(comment
+;(comment
 (def p3 (promise))
 (defn eh3 [a e]
-  (println e)
   (deliver p3 "got error"))
 (def a3 (agent true :error-handler eh3))
 (def b3 (agent "Fred"))
@@ -47,7 +45,7 @@
 (def q3 (deref p3 200 "timeout"))
 (deftest request-error-handler-3
   (is (= q3 "got error")))
-  )
+;  )
 
 ;(comment
   (def p4 (promise))
@@ -74,7 +72,6 @@
                (set-exception-handler! exh5)
                (/ 0 0)))
   (def q5 (deref p5 1200 "timeout"))
-  (println q5)
   (deftest signal-exception-handler-5
     (is (= "got exception" q5)))
 ;  )
