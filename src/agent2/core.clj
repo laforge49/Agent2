@@ -7,7 +7,7 @@
   nil)
 
 (defn- create-context-atom
-  "Create an atom with the operational context for operating on an agent:
+  "Create an atom with the context map for operating on an agent:
 
      agent        - The agent to be operated on.
      properties   - Properties assigned to the context,
@@ -62,23 +62,21 @@ Returns the new context atom."
   there is no exception handler, or if the exception handler itself
   throws an exception, pass the original exception to the source:
 
-     agent-value - The value of the agent agent.
      exception   - The exception to be passed to the
                    exception handler."
 
-  [agent-value exception]
+  [exception]
   (let [exception-handler (context-get :exception-handler)]
     (if (exception-handler)
       (try
-        (exception-handler agent-value exception)
+        (exception-handler exception)
         (catch Exception e (exception-reply exception)))
       (exception-reply exception))))
 
 (defn- process-action
   "Process an action:
 
-     agent-value - The actions not yet sent to
-                      other agents.
+     agent-value    - The value of the agent.
      [ctx-atom op]  - The action to be processed,
                       comprised of an operational
                       context atom and an operation.
@@ -94,8 +92,8 @@ Returns a new agent value."
   (binding [*context-atom* ctx-atom]
     (context-assoc! :agent-value agent-value)
     (try
-      (apply (first op) agent-value (rest op))
-      (catch Exception e (invoke-exception-handler (agent-value) e)))
+      (apply (first op) (rest op))
+      (catch Exception e (invoke-exception-handler e)))
     (context-get :agent-value)
     )
   )
@@ -170,7 +168,7 @@ than for a request."
      exception   - The exception thrown while
                    processing a request."
 
-  [agent-value exception]
+  [exception]
   (throw exception))
 
 (defn exception-reply
@@ -191,19 +189,17 @@ rather than for a request. Rather, the exception is simply thrown."
 (defn- forward-request
   "Receives a request and returns the response via a future:
 
-     transport-value - The value of the agent used
-                       to send the request.
      p               - The future to hold the response.
      ag              - The target agent.
      f               - Function being sent.
      args            - Arg list of the function being sent."
 
-  [transport-value p ag f args]
+  [p ag f args]
   (context-assoc! :exception-handler
-    (fn [_ e]
+    (fn [e]
       (deliver p e)))
   (request ag f args
-           (fn [remote-value v]
+           (fn [v]
              (deliver p v)
              ))
   )
