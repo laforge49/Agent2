@@ -38,7 +38,7 @@ Returns the new context atom."
   ([agent properties src-ctx-atom] (atom (conj properties [:agent agent]
                                                [:src-ctx-atom src-ctx-atom]))))
 
-(defn context-get
+(defn- context-get
   "Returns the value associated with a given key in the current context:
 
      key - The key into the context map."
@@ -46,7 +46,7 @@ Returns the new context atom."
   [key]
   (key @*context-atom*))
 
-(defn context-assoc!
+(defn- context-assoc!
   "Associates a new value with a given key in the current context:
 
      key   - The key into the context map.
@@ -54,6 +54,29 @@ Returns the new context atom."
 
   [key value]
   (swap! *context-atom* (fn [m] (assoc m key value))))
+
+(defn set-agent-value
+
+  "Change the value of the agent:
+
+     agent-value - The new agent value."
+
+  [agent-value]
+  (context-assoc! :agent-value agent-value))
+
+(defn set-exception-handler
+
+  "Assign an exception handler to the context map of the agent:
+
+     exception-handler - The new exception handler function.
+
+  The exception handler function takes two arguments:
+
+     agent-value - The value of the agent.
+     exception   - The exception thrown."
+
+  [exception-handler]
+  (context-assoc! :exception-handler exception-handler))
 
 (declare exception-reply)
 
@@ -112,10 +135,12 @@ args as the remaining arguments. Its return value is ignored. This
 function should use the set-agent-value function to update the state of
 the agent.
 
-Signals are unbuffered and are immediately passed to the target agent
-via the send function. The signal function can be invoked from anywhere
-as it does not itself use an operating context and should be used in
-place of send because of the added support for request/reply."
+Signals are passed to the target agent
+via the send function.
+
+The request and reply functions can only be used when processing a
+signal, request, response or exception. Signals and promise-request can be used
+anywhere."
 
   [ag f & args]
   (send ag process-action [(create-context-atom ag) (cons f args)]))
@@ -137,13 +162,14 @@ the agent. A response is returned by calling the reply function.
 
 The fr function takes two arguments, the value of the local agent and
 the response returned by the reply function. This function is called
-within the threadding context of the agent which invoked request. But
+within the threading context of the agent which invoked the request. But
 processing is asynchronous--there is no thread blocking. Rather, the
 processing of requests and responses are interleaved. Isolation then
 is an issue that must be managed by the application.
 
 The request and reply functions can only be used when processing a
-signal, request or response. Only signals then can be used elsewhere."
+signal, request, response or exception. Signals and promise-request can be used
+anywhere."
 
   [ag f args fr]
   (send ag process-action [(create-context-atom ag {:reply fr}) (cons f args)]))
@@ -154,8 +180,11 @@ signal, request or response. Only signals then can be used elsewhere."
      v - The response.
 
 No response is sent if the operating context is for a signal rather
-than for a request."
+than for a request.
 
+The request and reply functions can only be used when processing a
+signal, request, response or exception. Signals and promise-request can be used
+anywhere."
   [v]
   (let [src-ctx-atom (context-get :src-ctx-atom)]
     (if src-ctx-atom
@@ -173,7 +202,7 @@ than for a request."
   [agent-value exception]
   (throw exception))
 
-(defn exception-reply
+(defn- exception-reply
   "Pass an exception to the source which invoked the request, if any:
 
      exception - The exception.
@@ -195,7 +224,10 @@ rather than for a request. Rather, the exception is simply thrown."
      p               - The future to hold the response.
      ag              - The target agent.
      f               - Function being sent.
-     args            - Arg list of the function being sent."
+     args            - Arg list of the function being sent.
+
+The function f is invoked with the target agent's value
+pre-pended to its list of args."
 
   [agent-value p ag f args]
   (context-assoc! :exception-handler
@@ -212,7 +244,14 @@ rather than for a request. Rather, the exception is simply thrown."
 
      ag   - The target agent.
      f    - The function passed to the agent.
-     args - Arguments passed to the function."
+     args - Arguments passed to the function.
+
+The function f is invoked with the target agent's value
+pre-pended to its list of args.
+
+The request and reply functions can only be used when processing a
+signal, request, response or exception. Signals and promise-request can be used
+anywhere."
 
   [ag f & args]
   (let [p (promise)]
