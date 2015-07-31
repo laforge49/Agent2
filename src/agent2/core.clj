@@ -25,22 +25,27 @@ Minimum initial properties:
 
 Additional properties:
 
-     :reply             - The callback function for
-                          processing a response.
-     :exception-handler - A function for processing an
-                          exception.
-     :agent-value       - The value of the agent.
-     :complete          - True once a response or an
-                          exception has been sent.
+     :reply                - The callback function for
+                             processing a response.
+     :exception-handler    - A function for processing an
+                             exception.
+     :agent-value          - The value of the agent.
+     :complete             - True once a response or an
+                             exception has been sent.
+     :outstanding-requests - Number of pending responses.
 
 Returns the new context atom."
 
-  ([agent] (create-context-atom agent {}))
-  ([agent properties] (create-context-atom agent
-                                           properties
-                                           *context-atom*))
-  ([agent properties src-ctx-atom] (atom (conj properties [:agent agent]
-                                               [:src-ctx-atom src-ctx-atom]))))
+  ([agent]
+   (create-context-atom agent {}))
+  ([agent properties]
+   (create-context-atom agent
+                        properties
+                        *context-atom*))
+  ([agent properties src-ctx-atom]
+   (atom (conj properties [:agent agent]
+               [:src-ctx-atom src-ctx-atom]
+               [:outstanding-requests 0]))))
 
 ;;# context-get-context-atom
 
@@ -63,12 +68,14 @@ Returns the new context atom."
   [key value]
   (swap! *context-atom* (fn [m] (assoc m key value))))
 
-;;# set-agent-value
+;;# complete?
 
 (defn complete?
   "Returns true once a response or an exception has been sent."
   []
   (context-get :complete))
+
+;;# set-agent-value
 
 (defn set-agent-value
 
@@ -94,6 +101,17 @@ Returns the new context atom."
 
   [exception-handler]
   (context-assoc! :exception-handler exception-handler))
+
+;;# inc-outstanding
+
+(defn- inc-outstanding
+  "Add to the number of outstanding requests:
+
+     increment - The amount to add."
+
+  [increment]
+  (context-assoc! :outstanding-requests
+                  (+ increment (context-get :outstanding-requests))))
 
 (declare exception-reply)
 
@@ -142,6 +160,14 @@ Returns a new agent value."
         (invoke-exception-handler agent-value e)))
     (context-get :agent-value)
     )
+  )
+
+;;# process-response
+
+(defn- process-response
+  [agent-value action]
+  (inc-outstanding -1)
+  (process-action agent-value action)
   )
 
 ;;# signal
@@ -197,6 +223,7 @@ signal, request, response or exception. Signals and promise-request can be used
 anywhere."
 
   [ag f args fr]
+  (inc-outstanding 1)
   (send ag process-action [(create-context-atom ag {:reply fr}) (cons f args)]))
 
 ;;# reply
@@ -219,7 +246,7 @@ anywhere."
       (if src-ctx-atom
         (let [fr (context-get :reply)
               src-agent (:agent @src-ctx-atom)]
-          (send src-agent process-action [src-ctx-atom (list fr v)]))))))
+          (send src-agent process-response [src-ctx-atom (list fr v)]))))))
 
 ;;# exception-processor
 
@@ -249,7 +276,7 @@ rather than for a request. Rather, the exception is simply thrown."
       (context-assoc! :complete true)
       (if src-ctx-atom
         (let [src-agent (:agent @src-ctx-atom)]
-          (send src-agent process-action [src-ctx-atom (list exception-processor exception)]))
+          (send src-agent process-response [src-ctx-atom (list exception-processor exception)]))
         (throw exception)))))
 
 ;;# forward-request
