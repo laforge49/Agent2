@@ -279,7 +279,12 @@ pre-pended to its list of args.
 
 The request and reply functions can only be used when processing a
 signal, request, response or exception. Signals and promise-request can be used
-anywhere."
+anywhere.
+
+Just remember when using agent-future while processing a signal, request,
+response or exception that there are only a few threads in the default
+threadpool and blocking a thread to dereference a promise is generally
+not a good idea."
 
   [ag f & args]
   (let [p (promise)]
