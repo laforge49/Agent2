@@ -62,10 +62,11 @@ Returns the new context atom."
   there is no exception handler, or if the exception handler itself
   throws an exception, pass the original exception to the source:
 
-     exception   - The exception to be passed to the
-                   exception handler."
+     ag-value  - The value of the agent.
+     exception - The exception to be passed to the
+                 exception handler."
 
-  [exception]
+  [ag-value exception]
   (let [exception-handler (context-get :exception-handler)]
     (if (exception-handler)
       (try
@@ -92,8 +93,9 @@ Returns a new agent value."
   (binding [*context-atom* ctx-atom]
     (context-assoc! :agent-value agent-value)
     (try
-      (apply (first op) (rest op))
-      (catch Exception e (invoke-exception-handler e)))
+      (apply (first op) agent-value (rest op))
+      (catch Exception e
+        (invoke-exception-handler agent-value e)))
     (context-get :agent-value)
     )
   )
@@ -168,7 +170,7 @@ than for a request."
      exception   - The exception thrown while
                    processing a request."
 
-  [exception]
+  [agent-value exception]
   (throw exception))
 
 (defn exception-reply
@@ -189,17 +191,18 @@ rather than for a request. Rather, the exception is simply thrown."
 (defn- forward-request
   "Receives a request and returns the response via a future:
 
+     agent-value     - The value of the agent.
      p               - The future to hold the response.
      ag              - The target agent.
      f               - Function being sent.
      args            - Arg list of the function being sent."
 
-  [p ag f args]
+  [agent-value p ag f args]
   (context-assoc! :exception-handler
     (fn [e]
       (deliver p e)))
   (request ag f args
-           (fn [v]
+           (fn [agent-value v]
              (deliver p v)
              ))
   )

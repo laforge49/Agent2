@@ -2,13 +2,13 @@
   (:require [clojure.test :refer :all]
             [agent2.core :refer :all]))
 
-(defn inc-state []
-  (context-assoc! :agent-value (+ 1 (context-get :agent-value)))
+(defn inc-state [agent-value]
+  (context-assoc! :agent-value (+ 1 agent-value))
   )
 
 (defn return-state
-  []
-  (reply (context-get :agent-value)))
+  [agent-value]
+  (reply agent-value))
 
 (defn eh [a e]
   (println "got error" e))
