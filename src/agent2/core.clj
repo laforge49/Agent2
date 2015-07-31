@@ -91,9 +91,9 @@ Returns the new context atom."
 
   [ag-value exception]
   (let [exception-handler (context-get :exception-handler)]
-    (if (exception-handler)
+    (if exception-handler
       (try
-        (exception-handler exception)
+        (exception-handler ag-value exception)
         (catch Exception e (exception-reply exception)))
       (exception-reply exception))))
 
@@ -214,7 +214,7 @@ rather than for a request. Rather, the exception is simply thrown."
   (let [src-ctx-atom (context-get :src-ctx-atom)]
     (if src-ctx-atom
       (let [src-agent (:agent @src-ctx-atom)]
-        (send src-agent [src-ctx-atom (list exception-processor exception)]))
+        (send src-agent process-action [src-ctx-atom (list exception-processor exception)]))
       (throw exception))))
 
 (defn- forward-request
