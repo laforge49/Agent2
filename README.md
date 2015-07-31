@@ -26,7 +26,7 @@ easy to plan the implementation:
   - Two way messaging is complete.
   - Exception handling is complete.
   - Single response assurance is complete.
-  - Response assurance - todo.
+  - Response assurance is complete.
 
 ## Architecture
 

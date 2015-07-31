@@ -121,3 +121,10 @@
 (def q7 (deref p7 200 nil))
 (deftest reply-error-handler-7
   (is (= q7 "got exception")))
+
+(def a98 (agent 98))
+(def r98 (.getMessage @(agent-future a98 (fn [_] (set-exception-handler
+                                                   (fn [_ e]
+                                                     (reply e)))))))
+(deftest missing-response
+  (is (= r98 "Missing response")))
