@@ -77,12 +77,12 @@ Returns the new context atom."
   []
   (context-get :complete))
 
-;;# assure-response?
+;;# ensure-response?
 
-(defn- assure-response?
-  "Returns true if a response must be assured."
+(defn- ensure-response?
+  "Returns true if a response must be ensured."
   []
-  (context-get :assure-response))
+  (context-get :ensure-response))
 
 ;;# outstanding-requests?
 
@@ -172,7 +172,7 @@ Returns a new agent value."
     (context-assoc! :agent-value agent-value)
     (try
       (apply (first op) agent-value (rest op))
-      (def good (or (not (assure-response?)) (complete?) (outstanding-requests?)))
+      (def good (or (not (ensure-response?)) (complete?) (outstanding-requests?)))
       (if-not good (throw (Exception. "Missing response")))
       (catch Exception e
         (invoke-exception-handler agent-value e)))
@@ -243,7 +243,7 @@ anywhere."
   [ag f args fr]
   (inc-outstanding 1)
   (send ag process-action [(create-context-atom ag {:reply fr
-                                                    :assure-response true})
+                                                    :ensure-response true})
                            (cons f args)]))
 
 ;;# reply
