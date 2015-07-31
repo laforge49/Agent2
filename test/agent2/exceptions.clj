@@ -8,7 +8,7 @@
 (defn dbzr [_ _]
   (/ 0 0))
 
-;(comment
+(comment
   (def p1 (promise))
   (defn eh1 [a e]
     (deliver p1 true))
@@ -17,9 +17,9 @@
   (def q1 (deref p1 200 false))
   (deftest agent-error-handler-1
     (is (= true q1)))
-;  )
+  )
 
-;(comment
+(comment
   (def p2 (promise))
   (defn eh2 [a e]
     (deliver p2 true)
@@ -29,9 +29,9 @@
   (def q2 (deref p2 200 false))
   (deftest signal-error-handler-2
     (is (= true q2)))
-;  )
+  )
 
-;(comment
+(comment
 (def p3 (promise))
 (defn eh3 [a e]
   (deliver p3 "got error"))
@@ -45,9 +45,9 @@
 (def q3 (deref p3 200 "timeout"))
 (deftest request-error-handler-3
   (is (= q3 "got error")))
-;  )
+  )
 
-;(comment
+(comment
   (def p4 (promise))
   (defn eh4 [a e]
     (deliver p4 "got error"))
@@ -61,22 +61,22 @@
   (def q4 (deref p4 200 nil))
   (deftest reply-error-handler-4
     (is (= q4 "got error")))
-;  )
+  )
 
-;(comment
+(comment
   (def p5 (promise))
   (defn exh5 [_ _]
     (deliver p5 "got exception"))
   (def a5 (agent "Sam"))
   (signal a5 (fn [_]
-               (set-exception-handler! exh5)
+               (context-assoc! :exception-handler exh5)
                (/ 0 0)))
   (def q5 (deref p5 1200 "timeout"))
   (deftest signal-exception-handler-5
     (is (= "got exception" q5)))
-;  )
+  )
 
-;(comment
+(comment
 (def p6 (promise))
 (defn eh6 [a e]
   (deliver p6 "got error"))
@@ -86,16 +86,16 @@
 (def b6 (agent "Fred"))
 (signal a6
         (fn [agent-value]
-          (set-exception-handler! exh6)
+          (context-assoc! :exception-handler exh6)
           (request b6
                    dbz ()
                    '(println 99))))
 (def q6 (deref p6 200 "timeout"))
 (deftest request-error-handler-6
   (is (= q6 "got exception")))
-;  )
+  )
 
-;(comment
+(comment
 (def p7 (promise))
 (defn eh7 [a e]
   (deliver p7 "got error"))
@@ -105,11 +105,11 @@
 (def b7 (agent "Fred"))
 (signal a7
         (fn [agent-value]
-          (set-exception-handler! exh7)
+          (context-assoc! :exception-handler exh7)
           (request b7
                    (fn [_] (reply 42)) ()
                    dbzr)))
 (def q7 (deref p7 200 nil))
 (deftest reply-error-handler-7
   (is (= q7 "got exception")))
-;  )
+  )

@@ -3,32 +3,18 @@
             [agent2.core :refer :all]))
 
 (defn inc-state [agent-value]
-  (set-agent-value! (+ 1 agent-value))
+  (context-assoc! :agent-value (+ 1 agent-value))
   )
 
 (defn return-state
   [agent-value]
   (reply agent-value))
 
-(comment
-  (def a1 (agent 22))
-  (signal a1 inc-state)
-  (def r1 (agent-future a1 return-state))
-  (println r1)
-  )
+(defn eh [a e]
+  (println "got error" e))
 
-(def a (agent 2))
-(def p (promise))
-(signal (agent nil)
-        (fn [_]
-          (signal a inc-state)
-          (request a return-state ()
-                   (fn [_ v]
-                     (deliver p v)
-                     ))
-          )
-        )
-(def q (deref p 1200 nil))
-;(println q)
-(deftest basic
-  (is (= 3 q)))
+(def a22 (agent 22 :error-handler eh))
+(signal a22 inc-state)
+(def r22 @(agent-future a22 return-state))
+(deftest promise-request
+  (is (= 23 r22)))
