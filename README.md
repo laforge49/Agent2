@@ -2,7 +2,7 @@
 2-way messaging for Clojure Agents.
 
 When you send to an Agent there is no indication that the function
-sent was executed or was dropped when the agent was restated beyond
+sent was executed or was dropped when the agent was restarted beyond
 your own application code. This is typical of asynchronous programming,
 which gives no assurances about process completion.
 
@@ -25,7 +25,7 @@ easy to plan the implementation:
 
   - Two way messaging is complete.
   - Exception handling is complete.
-  - Single response assurance - todo.
+  - Single response assurance is complete.
   - Response assurance - todo.
 
 ## Architecture

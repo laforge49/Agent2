@@ -30,6 +30,8 @@ Additional properties:
      :exception-handler - A function for processing an
                           exception.
      :agent-value       - The value of the agent.
+     :complete          - True once a response or an
+                          exception has been sent.
 
 Returns the new context atom."
 
@@ -62,6 +64,11 @@ Returns the new context atom."
   (swap! *context-atom* (fn [m] (assoc m key value))))
 
 ;;# set-agent-value
+
+(defn complete?
+  "Returns true once a response or an exception has been sent."
+  []
+  (context-get :complete))
 
 (defn set-agent-value
 
@@ -206,11 +213,13 @@ The request and reply functions can only be used when processing a
 signal, request, response or exception. Signals and promise-request can be used
 anywhere."
   [v]
-  (let [src-ctx-atom (context-get :src-ctx-atom)]
-    (if src-ctx-atom
-      (let [fr (context-get :reply)
-            src-agent (:agent @src-ctx-atom)]
-        (send src-agent process-action [src-ctx-atom (list fr v)])))))
+  (if-not (complete?)
+    (let [src-ctx-atom (context-get :src-ctx-atom)]
+      (context-assoc! :complete true)
+      (if src-ctx-atom
+        (let [fr (context-get :reply)
+              src-agent (:agent @src-ctx-atom)]
+          (send src-agent process-action [src-ctx-atom (list fr v)]))))))
 
 ;;# exception-processor
 
@@ -235,11 +244,13 @@ No response is sent if the current operating context is for a signal
 rather than for a request. Rather, the exception is simply thrown."
 
   [exception]
-  (let [src-ctx-atom (context-get :src-ctx-atom)]
-    (if src-ctx-atom
-      (let [src-agent (:agent @src-ctx-atom)]
-        (send src-agent process-action [src-ctx-atom (list exception-processor exception)]))
-      (throw exception))))
+  (if-not (complete?)
+    (let [src-ctx-atom (context-get :src-ctx-atom)]
+      (context-assoc! :complete true)
+      (if src-ctx-atom
+        (let [src-agent (:agent @src-ctx-atom)]
+          (send src-agent process-action [src-ctx-atom (list exception-processor exception)]))
+        (throw exception)))))
 
 ;;# forward-request
 
@@ -257,8 +268,8 @@ pre-pended to its list of args."
 
   [agent-value p ag f args]
   (context-assoc! :exception-handler
-    (fn [e]
-      (deliver p e)))
+                  (fn [e]
+                    (deliver p e)))
   (request ag f args
            (fn [agent-value v]
              (deliver p v)
