@@ -33,6 +33,8 @@ Additional properties:
      :complete             - True once a response or an
                              exception has been sent.
      :outstanding-requests - Number of pending responses.
+     :assure-response      - Requires either completion or
+                             outstanding responses.
 
 Returns the new context atom."
 
@@ -70,10 +72,24 @@ Returns the new context atom."
 
 ;;# complete?
 
-(defn complete?
+(defn- complete?
   "Returns true once a response or an exception has been sent."
   []
   (context-get :complete))
+
+;;# assure-response?
+
+(defn- assure-response?
+  "Returns true if a response must be assured."
+  []
+  (context-get :assure-response))
+
+;;# outstanding-requests?
+
+(defn- outstanding-requests?
+  "Returns true if there are pending requests."
+  []
+  (< 0 (context-get :outstanding-requests)))
 
 ;;# set-agent-value
 
@@ -156,6 +172,8 @@ Returns a new agent value."
     (context-assoc! :agent-value agent-value)
     (try
       (apply (first op) agent-value (rest op))
+      (def good (or (not (assure-response?)) (complete?) (outstanding-requests?)))
+      (if-not good (throw (Exception. "Missing response")))
       (catch Exception e
         (invoke-exception-handler agent-value e)))
     (context-get :agent-value)
@@ -224,7 +242,9 @@ anywhere."
 
   [ag f args fr]
   (inc-outstanding 1)
-  (send ag process-action [(create-context-atom ag {:reply fr}) (cons f args)]))
+  (send ag process-action [(create-context-atom ag {:reply fr
+                                                    :assure-response true})
+                           (cons f args)]))
 
 ;;# reply
 
