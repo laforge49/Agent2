@@ -2869,13 +2869,11 @@ net.brehaut.ClojureTools = (function (SH) {
 </script><title>agent2 -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="http://example.com/FIXME">agent2</a></h1><h2 class="project-version">0.1.0-SNAPSHOT</h2><br /><p>A Clojure version of JActor2,
                 based on the Clojure core agent.</p>
 </div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.6.0</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#agent2.core">agent2.core</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#agent2.core" name="agent2.core"><h1 class="project-name">agent2.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(ns agent2.core)
-(ns agent2.core)</pre></td></tr><tr><td class="docs"><h1>*context-atom*</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Holds the operational context of the agent being operated on.</p>
+</td><td class="codes"><pre class="brush: clojure">(ns agent2.core)</pre></td></tr><tr><td class="docs"><h1>*context-atom*</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Holds the context of an operation performed on an agent.</p>
 </td><td class="codes"><pre class="brush: clojure">(def ^{:dynamic true, :private true} *context-atom*
-  nil)</pre></td></tr><tr><td class="docs"><p>Current value of the agent being operated on.</p>
-</td><td class="codes"><pre class="brush: clojure">(def ^{:dynamic true, :private true} *agent-value*
-  nil)</pre></td></tr><tr><td class="docs"><p>Create an atom with the operational context for operating on an agent:</p>
+  nil)</pre></td></tr><tr><td class="docs"><h1>create-context-atom</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Create an atom with the context map for operating on an agent:</p>
 
 <pre><code> agent        - The agent to be operated on.
  properties   - Properties assigned to the context,
@@ -2888,9 +2886,7 @@ net.brehaut.ClojureTools = (function (SH) {
 <p>Minimum initial properties:</p>
 
 <pre><code> :agent        - The agent to be operated on.
- :src-ctx-atom - The atom for the creating context.
- :unsent       - Buffered requests/responses which
-                 have not yet been sent.
+ :src-ctx-atom - The atom of the creating context.
 </code></pre>
 
 <p>Additional properties:</p>
@@ -2899,160 +2895,160 @@ net.brehaut.ClojureTools = (function (SH) {
                       processing a response.
  :exception-handler - A function for processing an
                       exception.
+ :agent-value       - The value of the agent.
 </code></pre>
 
 <p>Returns the new context atom.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- create-context-atom
   ([agent] (create-context-atom agent {}))
-  ([agent properties] (create-context-atom agent properties *context-atom*))
+  ([agent properties] (create-context-atom agent
+                                           properties
+                                           *context-atom*))
   ([agent properties src-ctx-atom] (atom (conj properties [:agent agent]
-                                               [:src-ctx-atom src-ctx-atom]
-                                               [:unsent []]))))</pre></td></tr><tr><td class="docs"><p>Returns the agent being operated on.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn get-agent
-  []
-  (:agent @*context-atom*))</pre></td></tr><tr><td class="docs"><p>Returns the value of the agent being operated on.
-  This may be the current value of the agent, or the last value bound with
-  set-agent-value!.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn get-agent-value
-  []
-  *agent-value*)</pre></td></tr><tr><td class="docs"><p>Bind a new value to be given to the agent once the current operation is complete.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn set-agent-value!
-  [value]
-  (def ^:dynamic *agent-value* value))</pre></td></tr><tr><td class="docs"><p>Returns the exception handler bound to the operating context, or nil.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn get-exception-handler
-  []
-  (:exception-handler @*context-atom*))</pre></td></tr><tr><td class="docs"><p>Bind a new exception handler function to the operating context:</p>
+                                               [:src-ctx-atom src-ctx-atom]))))</pre></td></tr><tr><td class="docs"><h1>context-get-context-atom</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns the value associated with a given key in the current context:</p>
 
-<pre><code> exception-handler - The function which will handle
-                     any excptions.
+<pre><code> key - The key into the context map.
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- context-get
+  [key]
+  (key @*context-atom*))</pre></td></tr><tr><td class="docs"><h1>context-assoc!</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Associates a new value with a given key in the current context:</p>
+
+<pre><code> key   - The key into the context map.
+ value - The new value to be associated with the key.
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- context-assoc!
+  [key value]
+  (swap! *context-atom* (fn [m] (assoc m key value))))</pre></td></tr><tr><td class="docs"><h1>set-agent-value</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Change the value of the agent:</p>
+
+<pre><code> agent-value - The new agent value.
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn set-agent-value
+  [agent-value]
+  (context-assoc! :agent-value agent-value))</pre></td></tr><tr><td class="docs"><h1>set-exception-handler</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Assign an exception handler to the context map of the agent:</p>
+
+<pre><code> exception-handler - The new exception handler function.
 </code></pre>
 
-<p>  The exception handler function must have two arguments, the agent value and the exception
-  to be handled.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn set-exception-handler!
-  [exception-handler]
-  (reset! *context-atom* (assoc @*context-atom* :exception-handler exception-handler)))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(declare process-actions exception-reply)</pre></td></tr><tr><td class="docs"><p>Invokes the exception handler, if any, to handle the exception. If there is no exception
-  handler, or if the exception handler itself throws an exception, pass the original exception
-  to the source:</p>
+<p>  The exception handler function takes two arguments:</p>
 
 <pre><code> agent-value - The value of the agent.
- exception   - The exception to be passed to the
-               exception handler.
+ exception   - The exception thrown.
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn set-exception-handler
+  [exception-handler]
+  (context-assoc! :exception-handler exception-handler))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(declare exception-reply)</pre></td></tr><tr><td class="docs"><h1>invoke-exception-handler</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Invokes the exception handler, if any, to handle the exception. If
+  there is no exception handler, or if the exception handler itself
+  throws an exception, pass the original exception to the source:</p>
+
+<pre><code> ag-value  - The value of the agent.
+ exception - The exception to be passed to the
+             exception handler.
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn- invoke-exception-handler
-  [agent-value exception]
-  (if (get-exception-handler)
-    (try
-      ((get-exception-handler) agent-value exception)
-      (catch Exception e (exception-reply exception)))
-    (exception-reply exception)))</pre></td></tr><tr><td class="docs"><p>Process a single action:</p>
+  [ag-value exception]
+  (let [exception-handler (context-get :exception-handler)]
+    (if exception-handler
+      (try
+        (exception-handler ag-value exception)
+        (catch Exception e (exception-reply exception)))
+      (exception-reply exception))))</pre></td></tr><tr><td class="docs"><h1>process-action</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Process an action:</p>
 
-<pre><code> grouped-unsent - The actions not yet sent to
-                  other agents.
+<pre><code> agent-value    - The value of the agent.
  [ctx-atom op]  - The action to be processed,
                   comprised of an operational
                   context atom and an operation.
 </code></pre>
 
-<p>Any exceptions thrown while processing the action are either passed to the local exception
-handler or, failing that, passed to the source if there is one. Unhandled exceptions then
-are given to the source agent which received a signal.</p>
+<p>Any exceptions thrown while processing the action are either passed to
+the local exception handler or, failing that, passed to the source if
+there is one. Unhandled exceptions then are given to the source agent
+which received a signal.</p>
 
-<p>Returns grouped-unsent with any additional unsent actions grouped by destination agent.</p>
+<p>Returns a new agent value.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- process-action
-  [grouped-unsent [ctx-atom op]]
+  [agent-value [ctx-atom op]]
   (binding [*context-atom* ctx-atom]
+    (context-assoc! :agent-value agent-value)
     (try
-      (apply (first op) (get-agent-value) (rest op))
-      (catch Exception e (invoke-exception-handler (get-agent-value) e)))
-      (let [unsent (:unsent @ctx-atom)
-            grouped-unsent (reduce
-                             #(assoc-in %1 [(first %2)] (second %2))
-                             grouped-unsent
-                             unsent)]                         ; merge the new requests/responses into grouped-unsent.
-        (reset! *context-atom* (assoc-in @ctx-atom [:unsent] [])) ; clear :unsent in the context atom.
-        grouped-unsent)))</pre></td></tr><tr><td class="docs"><p>Send all the buffered actions for a given agnet.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- send-actions
-  [[agent actions]]
-  (send agent process-actions actions))</pre></td></tr><tr><td class="docs"><p>This function is passed to an agent and subsequently invoked by same:</p>
+      (apply (first op) agent-value (rest op))
+      (catch Exception e
+        (invoke-exception-handler agent-value e)))
+    (context-get :agent-value)))</pre></td></tr><tr><td class="docs"><h1>signal</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>A 1-way message to operate on an agent.</p>
 
-<pre><code> old-agent-value - The current value of the agent,
-                   provided by the agent itself.
- actions         - The actions passed with this
-                   function to an agent for
-                   operating on that agent.
+<pre><code> ag   - The agent to be operated on.
+ f    - The function to operate on the agent.
+ args - Optional arguments to f.
 </code></pre>
 
-<p>After all the actions have been processed the buffered actions are sent to their
-destination agents in groups.</p>
+<p>The f function takes the target agent's value as its first argument and
+args as the remaining arguments. Its return value is ignored. This
+function should use the set-agent-value function to update the state of
+the agent.</p>
 
-<p>Returns an updated value for the agent.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- process-actions
-  [old-agent-value actions]
-  (def ^:dynamic *agent-value* old-agent-value)
-  (dorun (map send-actions
-              (reduce process-action {} actions)))
-  *agent-value*)</pre></td></tr><tr><td class="docs"><p>An unbuffered, 1-way message to operate on an agent.</p>
+<p>Signals are passed to the target agent
+via the send function.</p>
 
-<pre><code> agent - The agent to be operated on.
- f     - The function to operate on the agent.
- args  - Optional arguments to f.
-</code></pre>
-
-<p>The f function takes the target agent's value as its first argument and args as
-the remaining arguments. Its return value is ignored. This function should use the set-agent-value
-function to update the state of the agent.</p>
-
-<p>Signals are unbuffered and are immediately passed to the target agent via the send function.
-The signal function can be invoked from anywhere as it does not itself use an operating context
-and should be used in place of send because of the added support for request/reply.</p>
+<p>The request and reply functions can only be used when processing a
+signal, request, response or exception. Signals and promise-request can be used
+anywhere.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn signal
-  [agent f &amp; args]
-  (send agent process-actions (list [(create-context-atom agent) (cons f args)])))</pre></td></tr><tr><td class="docs"><p>A buffered 2-way message exchange to operate on an agent and get a reply without blocking:</p>
+  [ag f &amp; args]
+  (send ag process-action [(create-context-atom ag) (cons f args)]))</pre></td></tr><tr><td class="docs"><h1>request</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>A 2-way message exchange to operate on an agent and get a reply
+  without blocking:</p>
 
-<pre><code> agent - The agent to be operated on.
- f     - The function which operates on the agent.
- args  - Arguments to be passed to f. May be ().
- fr    - The callback function which processes the
+<pre><code> ag   - The agent to be operated on.
+ f    - The function which operates on the agent.
+ args - Arguments to be passed to f. May be ().
+ fr   - The callback function which processes the
          response.
 </code></pre>
 
-<p>The f function takes the target agent's value as its first argument and args as
-the remaining arguments. Its return value is ignored. This function should use the set-agent-value
-function to update the state of the agent. A response is returned by calling the reply function.</p>
+<p>The f function takes the target agent's value as its first argument and
+args as the remaining arguments. Its return value is ignored. This
+function should use the set-agent-value function to update the state of
+the agent. A response is returned by calling the reply function.</p>
 
-<p>The fr function takes two arguments, the value of the local agent andthe response returned by the reply function.
-This function is called within the threadding context of the agent which invoked request.
-But processing is asynchronous--there is no thread blocking. Rather, the processing of requests
-and responses are interleaved. Isolation then is an issue that must be managed by the application.</p>
+<p>The fr function takes two arguments, the value of the local agent and
+the response returned by the reply function. This function is called
+within the threading context of the agent which invoked the request. But
+processing is asynchronous--there is no thread blocking. Rather, the
+processing of requests and responses are interleaved. Isolation then
+is an issue that must be managed by the application.</p>
 
-<p>The request and reply functions can only be used when processing a signal, request or response. Only signals
-then can be used elsewhere.</p>
+<p>The request and reply functions can only be used when processing a
+signal, request, response or exception. Signals and promise-request can be used
+anywhere.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn request
-  [agent f args fr]
-  (let [context @*context-atom*
-        ctx-atom (create-context-atom agent {:reply fr})
-        unsent (:unsent context)
-        msg [agent (list [ctx-atom (cons f args)])]
-        unsent (conj unsent msg)]
-    (reset! *context-atom* (assoc-in context [:unsent] unsent))))</pre></td></tr><tr><td class="docs"><p>Reply to a request via a buffered message:</p>
+  [ag f args fr]
+  (send ag process-action [(create-context-atom ag {:reply fr}) (cons f args)]))</pre></td></tr><tr><td class="docs"><h1>reply</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Reply to a request via a buffered message:</p>
 
 <pre><code> v - The response.
 </code></pre>
 
-<p>No response is sent if the operating context is for a signal rather than for a request.</p>
+<p>No response is sent if the operating context is for a signal rather
+than for a request.</p>
+
+<p>The request and reply functions can only be used when processing a
+signal, request, response or exception. Signals and promise-request can be used
+anywhere.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn reply
   [v]
-  (let [context @*context-atom*
-        fr (:reply context)]
-    (if fr
-      (let [src-ctx-atom (:src-ctx-atom context)
-            src-agent (:agent @src-ctx-atom)
-            unsent (:unsent context)
-            msg [src-agent (list [src-ctx-atom (list fr v)])]
-            unsent (conj unsent msg)]
-        (reset! *context-atom* (assoc-in context [:unsent] unsent))))))</pre></td></tr><tr><td class="docs"><p>Processes an exception response by simply rethrowing the exception:</p>
+  (let [src-ctx-atom (context-get :src-ctx-atom)]
+    (if src-ctx-atom
+      (let [fr (context-get :reply)
+            src-agent (:agent @src-ctx-atom)]
+        (send src-agent process-action [src-ctx-atom (list fr v)])))))</pre></td></tr><tr><td class="docs"><h1>exception-processor</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Processes an exception response by simply rethrowing the exception:</p>
 
 <pre><code> agent-value - The value of the local context.
  exception   - The exception thrown while
@@ -3060,24 +3056,58 @@ then can be used elsewhere.</p>
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn- exception-processor
   [agent-value exception]
-  (throw exception))</pre></td></tr><tr><td class="docs"><p>Pass an exception to the source which invoked the request, if any:</p>
+  (throw exception))</pre></td></tr><tr><td class="docs"><h1>exception-reply</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Pass an exception to the source which invoked the request, if any:</p>
 
 <pre><code> exception - The exception.
 </code></pre>
 
-<p>No response is sent if the current operating context is for a signal rather than for a request.
-Rather, the exception is simply thrown.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn exception-reply
+<p>No response is sent if the current operating context is for a signal
+rather than for a request. Rather, the exception is simply thrown.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- exception-reply
   [exception]
-  (let [context @*context-atom*
-        src-ctx-atom (:src-ctx-atom context)]
+  (let [src-ctx-atom (context-get :src-ctx-atom)]
     (if src-ctx-atom
-      (let [src-agent (:agent @src-ctx-atom)
-            unsent (:unsent context)
-            msg [src-agent (list [src-ctx-atom (list exception-processor exception)])]
-            unsent (conj unsent msg)]
-        (reset! *context-atom* (assoc context :unsent unsent)))
-      (throw exception))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_agent2.core">agent2.core</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
+      (let [src-agent (:agent @src-ctx-atom)]
+        (send src-agent process-action [src-ctx-atom (list exception-processor exception)]))
+      (throw exception))))</pre></td></tr><tr><td class="docs"><h1>forward-request</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Receives a request and returns the response via a future:</p>
+
+<pre><code> agent-value     - The value of the agent.
+ p               - The future to hold the response.
+ ag              - The target agent.
+ f               - Function being sent.
+ args            - Arg list of the function being sent.
+</code></pre>
+
+<p>The function f is invoked with the target agent's value
+pre-pended to its list of args.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- forward-request
+  [agent-value p ag f args]
+  (context-assoc! :exception-handler
+    (fn [e]
+      (deliver p e)))
+  (request ag f args
+           (fn [agent-value v]
+             (deliver p v))))</pre></td></tr><tr><td class="docs"><h1>agent-future</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Sends a function to an agent and returns a promise for the result:</p>
+
+<pre><code> ag   - The target agent.
+ f    - The function passed to the agent.
+ args - Arguments passed to the function.
+</code></pre>
+
+<p>The function f is invoked with the target agent's value
+pre-pended to its list of args.</p>
+
+<p>The request and reply functions can only be used when processing a
+signal, request, response or exception. Signals and promise-request can be used
+anywhere.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn agent-future
+  [ag f &amp; args]
+  (let [p (promise)]
+    (signal (agent &quot;transporter&quot;) forward-request p ag f args)
+    p))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_agent2.core">agent2.core</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
 SyntaxHighlighter.all();
 
 // hackity hack

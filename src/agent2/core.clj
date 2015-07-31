@@ -6,6 +6,8 @@
   "Holds the context of an operation performed on an agent."
   nil)
 
+;;# create-context-atom
+
 (defn- create-context-atom
   "Create an atom with the context map for operating on an agent:
 
@@ -38,6 +40,8 @@ Returns the new context atom."
   ([agent properties src-ctx-atom] (atom (conj properties [:agent agent]
                                                [:src-ctx-atom src-ctx-atom]))))
 
+;;# context-get-context-atom
+
 (defn- context-get
   "Returns the value associated with a given key in the current context:
 
@@ -45,6 +49,8 @@ Returns the new context atom."
 
   [key]
   (key @*context-atom*))
+
+;;# context-assoc!
 
 (defn- context-assoc!
   "Associates a new value with a given key in the current context:
@@ -55,6 +61,8 @@ Returns the new context atom."
   [key value]
   (swap! *context-atom* (fn [m] (assoc m key value))))
 
+;;# set-agent-value
+
 (defn set-agent-value
 
   "Change the value of the agent:
@@ -63,6 +71,8 @@ Returns the new context atom."
 
   [agent-value]
   (context-assoc! :agent-value agent-value))
+
+;;# set-exception-handler
 
 (defn set-exception-handler
 
@@ -80,6 +90,8 @@ Returns the new context atom."
 
 (declare exception-reply)
 
+;;# invoke-exception-handler
+
 (defn- invoke-exception-handler
   "Invokes the exception handler, if any, to handle the exception. If
   there is no exception handler, or if the exception handler itself
@@ -96,6 +108,8 @@ Returns the new context atom."
         (exception-handler ag-value exception)
         (catch Exception e (exception-reply exception)))
       (exception-reply exception))))
+
+;;# process-action
 
 (defn- process-action
   "Process an action:
@@ -123,6 +137,8 @@ Returns a new agent value."
     )
   )
 
+;;# signal
+
 (defn signal
   "A 1-way message to operate on an agent.
 
@@ -144,6 +160,8 @@ anywhere."
 
   [ag f & args]
   (send ag process-action [(create-context-atom ag) (cons f args)]))
+
+;;# request
 
 (defn request
   "A 2-way message exchange to operate on an agent and get a reply
@@ -174,6 +192,8 @@ anywhere."
   [ag f args fr]
   (send ag process-action [(create-context-atom ag {:reply fr}) (cons f args)]))
 
+;;# reply
+
 (defn reply
   "Reply to a request via a buffered message:
 
@@ -192,6 +212,8 @@ anywhere."
             src-agent (:agent @src-ctx-atom)]
         (send src-agent process-action [src-ctx-atom (list fr v)])))))
 
+;;# exception-processor
+
 (defn- exception-processor
   "Processes an exception response by simply rethrowing the exception:
 
@@ -201,6 +223,8 @@ anywhere."
 
   [agent-value exception]
   (throw exception))
+
+;;# exception-reply
 
 (defn- exception-reply
   "Pass an exception to the source which invoked the request, if any:
@@ -216,6 +240,8 @@ rather than for a request. Rather, the exception is simply thrown."
       (let [src-agent (:agent @src-ctx-atom)]
         (send src-agent process-action [src-ctx-atom (list exception-processor exception)]))
       (throw exception))))
+
+;;# forward-request
 
 (defn- forward-request
   "Receives a request and returns the response via a future:
@@ -238,6 +264,8 @@ pre-pended to its list of args."
              (deliver p v)
              ))
   )
+
+;;# agent-future
 
 (defn agent-future
   "Sends a function to an agent and returns a promise for the result:
