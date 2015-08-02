@@ -169,11 +169,14 @@ Returns a new agent value."
 
   [agent-value [ctx-atom op]]
   (binding [*context-atom* ctx-atom]
+    (if (complete?) (throw (Exception. "already closed.")))
     (context-assoc! :agent-value agent-value)
     (try
       (apply (first op) agent-value (rest op))
-      (def good (or (not (ensure-response?)) (complete?) (outstanding-requests?)))
-      (if-not good (throw (Exception. "Missing response")))
+      (let [good (or (not (ensure-response?))
+                    (complete?)
+                    (outstanding-requests?))]
+      (if-not good (throw (Exception. "Missing response"))))
       (catch Exception e
         (invoke-exception-handler agent-value e)))
     (context-get :agent-value)
@@ -256,9 +259,13 @@ anywhere."
 No response is sent if the operating context is for a signal rather
 than for a request.
 
+Once reply is called, signals and requests can not be sent, nor will
+responses be processed.
+
 The request and reply functions can only be used when processing a
-signal, request, response or exception. Signals and promise-request can be used
-anywhere."
+signal, request, response or exception. Signals and promise-request
+can be used anywhere."
+
   [v]
   (if-not (complete?)
     (let [src-ctx-atom (context-get :src-ctx-atom)]
@@ -287,6 +294,9 @@ anywhere."
 
      exception - The exception.
 
+Once reply is called, signals and requests can not be sent, nor will
+responses be processed.
+
 No response is sent if the current operating context is for a signal
 rather than for a request. Rather, the exception is simply thrown."
 
@@ -296,16 +306,17 @@ rather than for a request. Rather, the exception is simply thrown."
       (context-assoc! :complete true)
       (if src-ctx-atom
         (let [src-agent (:agent @src-ctx-atom)]
-          (send src-agent process-response [src-ctx-atom (list exception-processor exception)]))
+          (send src-agent process-response
+                [src-ctx-atom (list exception-processor exception)]))
         (throw exception)))))
 
 ;;# forward-request
 
 (defn- forward-request
-  "Receives a request and returns the response via a future:
+  "Receives a request and returns the response via a promise:
 
      agent-value     - The value of the agent.
-     p               - The future to hold the response.
+     p               - The promise to hold the response.
      ag              - The target agent.
      f               - Function being sent.
      args            - Arg list of the function being sent.
@@ -325,7 +336,7 @@ pre-pended to its list of args."
 
 ;;# agent-future
 
-(defn agent-future
+(defn agent-promise
   "Sends a function to an agent and returns a promise for the result:
 
      ag   - The target agent.
@@ -339,7 +350,7 @@ The request and reply functions can only be used when processing a
 signal, request, response or exception. Signals and promise-request can be used
 anywhere.
 
-Just remember when using agent-future while processing a signal, request,
+Just remember when using agent-promise while processing a signal, request,
 response or exception that there are only a few threads in the default
 threadpool and blocking a thread to dereference a promise is generally
 not a good idea."

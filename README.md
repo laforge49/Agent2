@@ -16,6 +16,9 @@ guarantee that for every request there will be a response, if only
 an error response. Such systems are still fully asynchronous, but a 
 lot more fun to work with.
 
+Remember that [Clojure agents](http://clojure.org/agents) are not intended for use directly across 
+multiple JVM's. And this simplifies things enormously.
+
 ## Status
 
 This project is a rewrite of the Java project, 
@@ -25,6 +28,8 @@ easy to plan the implementation:
 
   - Two way messaging is complete.
   - Exception handling is complete.
+  - Constrained time --todo.
+  - Constrained resources --todo.
   - Single response assurance is complete.
   - Response assurance is complete.
 

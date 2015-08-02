@@ -15,7 +15,7 @@
 
 (def a22 (agent 22 :error-handler eh))
 (signal a22 inc-state)
-(def r22 @(agent-future a22 return-state))
+(def r22 @(agent-promise a22 return-state))
 (deftest promise-request
   (is (= 23 r22)))
 
@@ -123,7 +123,7 @@
   (is (= q7 "got exception")))
 
 (def a98 (agent 98))
-(def r98 (.getMessage @(agent-future a98 (fn [_] (set-exception-handler
+(def r98 (.getMessage @(agent-promise a98 (fn [_] (set-exception-handler
                                                    (fn [_ e]
                                                      (reply e)))))))
 (deftest missing-response
