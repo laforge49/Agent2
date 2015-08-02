@@ -11,7 +11,8 @@
   (reply agent-value))
 
 (defn eh [a e]
-  (println "got error" e))
+  (println "got error" e)
+  (.printStackTrace e))
 
 (def a22 (agent 22 :error-handler eh))
 (signal a22 inc-state)

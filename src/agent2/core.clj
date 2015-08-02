@@ -20,8 +20,11 @@
 
 Minimum initial properties:
 
-     :agent        - The agent to be operated on.
-     :src-ctx-atom - The atom of the creating context.
+     :agent            - The agent to be operated on.
+     :src-ctx-atom     - The atom of the creating context.
+     :requests-counter - A count of the number of
+                         requests that have been sent.
+
 
 Additional properties:
 
@@ -35,7 +38,11 @@ Additional properties:
      :outstanding-requests - Number of pending responses.
      :assure-response      - Requires either completion or
                              outstanding responses.
-
+                             Set when a request is sent.
+     :max-requests         - Upper bound on the number of
+                             requests that can be sent.
+     :requests-counter     - A count of the number of
+                             requests that have been sent.
 Returns the new context atom."
 
   ([agent]
@@ -120,14 +127,15 @@ Returns the new context atom."
 
 ;;# inc-outstanding
 
-(defn- inc-outstanding
-  "Add to the number of outstanding requests:
+(defn- context-inc
+  "Add to the selected value in the context map:
 
+     key       - Selects the value.
      increment - The amount to add."
 
-  [increment]
-  (context-assoc! :outstanding-requests
-                  (+ increment (context-get :outstanding-requests))))
+  [key increment]
+  (context-assoc! key
+                  (+ increment (context-get key))))
 
 (declare exception-reply)
 
@@ -170,6 +178,8 @@ Returns a new agent value."
   [agent-value [ctx-atom op]]
   (binding [*context-atom* ctx-atom]
     (if (complete?) (throw (Exception. "already closed.")))
+    (if (nil? (context-get :max-requests))
+      (context-assoc! :max-requests Long/MAX_VALUE))
     (context-assoc! :agent-value agent-value)
     (try
       (apply (first op) agent-value (rest op))
@@ -187,7 +197,7 @@ Returns a new agent value."
 
 (defn- process-response
   [agent-value action]
-  (inc-outstanding -1)
+  (context-inc :outstanding-requests -1)
   (process-action agent-value action)
   )
 
@@ -213,7 +223,8 @@ signal, request, response or exception. Signals and promise-request can be used
 anywhere."
 
   [ag f & args]
-  (send ag process-action [(create-context-atom ag) (cons f args)]))
+  (send ag process-action [(create-context-atom ag {:requests-counter 0})
+                           (cons f args)]))
 
 ;;# request
 
@@ -245,9 +256,13 @@ anywhere."
 
   [ag f args fr]
   (if (complete?) (throw (Exception. "already closed.")))
-  (inc-outstanding 1)
+  (context-inc :outstanding-requests 1)
+  (context-inc :requests-counter 1)
+  (if (> (context-get :requests-counter) (context-get :max-requests))
+    (throw (Exception. "exceeded max requests")))
   (send ag process-action [(create-context-atom ag {:reply fr
-                                                    :ensure-response true})
+                                                    :ensure-response true
+                                                    :requests-counter 0})
                            (cons f args)]))
 
 ;;# reply
@@ -295,7 +310,7 @@ can be used anywhere."
 
      exception - The exception.
 
-Once reply is called, signals and requests can not be sent, nor will
+Once reply is called, requests can not be sent, nor will
 responses be processed.
 
 No response is sent if the current operating context is for a signal
