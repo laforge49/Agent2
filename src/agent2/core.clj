@@ -244,6 +244,7 @@ signal, request, response or exception. Signals and promise-request can be used
 anywhere."
 
   [ag f args fr]
+  (if (complete?) (throw (Exception. "already closed.")))
   (inc-outstanding 1)
   (send ag process-action [(create-context-atom ag {:reply fr
                                                     :ensure-response true})
@@ -259,7 +260,7 @@ anywhere."
 No response is sent if the operating context is for a signal rather
 than for a request.
 
-Once reply is called, signals and requests can not be sent, nor will
+Once reply is called, requests can not be sent, nor will
 responses be processed.
 
 The request and reply functions can only be used when processing a
