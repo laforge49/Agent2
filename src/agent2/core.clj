@@ -187,30 +187,37 @@ which received a signal.
 Returns a new agent value."
 
   [agent-value [ctx-atom op]]
-  (binding [*context-atom* ctx-atom]
-    (if (complete?) (throw (Exception. "already closed.")))
-    (if (nil? (context-get :max-requests))
-      (context-assoc! :max-requests Long/MAX_VALUE))
-    (context-assoc! :agent-value agent-value)
-    (try
-      (apply (first op) agent-value (rest op))
-      (let [good (or (not (ensure-response?))
-                    (complete?)
-                    (outstanding-requests?))]
+  (if (complete?) (throw (Exception. "already closed.")))
+  (if (nil? (context-get :max-requests))
+    (context-assoc! :max-requests Long/MAX_VALUE))
+  (context-assoc! :agent-value agent-value)
+  (try
+    (apply (first op) agent-value (rest op))
+    (let [good (or (not (ensure-response?))
+                   (complete?)
+                   (outstanding-requests?))]
       (if-not good (throw (Exception. "Missing response"))))
-      (catch Exception e
-        (invoke-exception-handler agent-value e)))
-    (context-get :agent-value)
-    )
+    (catch Exception e
+      (invoke-exception-handler agent-value e)))
+  (context-get :agent-value)
   )
+
+;;# process-request
+
+(defn- process-request
+  [agent-value [ctx-atom op]]
+  (binding [*context-atom* ctx-atom]
+    (process-action agent-value [ctx-atom op])
+    ))
 
 ;;# process-response
 
 (defn- process-response
-  [agent-value action]
-  (context-inc :outstanding-requests -1)
-  (process-action agent-value action)
-  )
+  [agent-value [ctx-atom op]]
+  (binding [*context-atom* ctx-atom]
+    (context-inc :outstanding-requests -1)
+    (process-action agent-value [ctx-atom op])
+    ))
 
 ;;# signal
 
@@ -234,8 +241,8 @@ signal, request, response or exception. Signals and promise-request can be used
 anywhere."
 
   [ag f & args]
-  (send ag process-action [(create-context-atom ag {:requests-counter 0})
-                           (cons f args)]))
+  (send ag process-request [(create-context-atom ag {:requests-counter 0})
+                            (cons f args)]))
 
 ;;# request
 
@@ -271,10 +278,10 @@ anywhere."
   (context-inc :requests-counter 1)
   (if (> (context-get :requests-counter) (context-get :max-requests))
     (throw (Exception. "exceeded max requests")))
-  (send ag process-action [(create-context-atom ag {:reply fr
-                                                    :ensure-response true
-                                                    :requests-counter 0})
-                           (cons f args)]))
+  (send ag process-request [(create-context-atom ag {:reply            fr
+                                                     :ensure-response  true
+                                                     :requests-counter 0})
+                            (cons f args)]))
 
 ;;# reply
 
