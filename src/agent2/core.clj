@@ -109,6 +109,17 @@ Returns the new context atom."
   [agent-value]
   (context-assoc! :agent-value agent-value))
 
+;;# set-max-requests
+
+(defn set-max-requests
+
+  "Set the maximum number of requests that can be sent:
+
+     max-requests - The limit before an exception is thrown."
+
+  [max-requests]
+  (context-assoc! :max-requests max-requests))
+
 ;;# set-exception-handler
 
 (defn set-exception-handler
@@ -342,7 +353,7 @@ pre-pended to its list of args."
 
   [agent-value p ag f args]
   (context-assoc! :exception-handler
-                  (fn [e]
+                  (fn [av e]
                     (deliver p e)))
   (request ag f args
            (fn [agent-value v]

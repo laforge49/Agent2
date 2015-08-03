@@ -20,6 +20,18 @@
 (deftest promise-request
   (is (= 23 r22)))
 
+(def a33 (agent 33))
+(defn ignore-result [_ _] (println "ignoring"))
+(defn check33 [_]
+  (request a33 return-state () ignore-result)
+  (request a33 return-state () ignore-result)
+  (request a33 return-state () ignore-result)
+  (reply 999)
+  )
+(def a34 (agent 34))
+(def r34 @(agent-promise a34 check33))
+(println r34)
+
 (defn dbz [_]
   (/ 0 0))
 
