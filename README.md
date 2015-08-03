@@ -29,7 +29,7 @@ easy to plan the implementation:
   - Two way messaging is complete.
   - Exception handling is complete.
   - Constrained time --todo.
-  - Constrained resources --todo.
+  - Constrained resources is complete.
   - Single response assurance is complete.
   - Response assurance is complete.
 
