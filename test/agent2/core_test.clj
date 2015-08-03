@@ -32,6 +32,19 @@
 (deftest missing-response2
   (is (= r34 "Missing response")))
 
+(def a43 (agent 43))
+(defn check43 [_]
+  (set-max-requests 2)
+  (request a43 return-state () ignore-result)
+  (request a43 return-state () ignore-result)
+  (request a43 return-state () ignore-result)
+  (reply 999)
+  )
+(def a44 (agent 44))
+(def r44 (.getMessage @(agent-promise a44 check43)))
+(deftest too-many-requests
+  (is (= r44 "Exceeded max requests")))
+
 (defn dbz [_]
   (/ 0 0))
 

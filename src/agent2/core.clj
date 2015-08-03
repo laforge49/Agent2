@@ -277,7 +277,7 @@ anywhere."
   (context-inc :outstanding-requests 1)
   (context-inc :requests-counter 1)
   (if (> (context-get :requests-counter) (context-get :max-requests))
-    (throw (Exception. "exceeded max requests")))
+    (throw (Exception. "Exceeded max requests")))
   (send ag process-request [(create-context-atom ag {:reply            fr
                                                      :ensure-response  true
                                                      :requests-counter 0})
