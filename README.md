@@ -23,13 +23,11 @@ multiple JVM's. And this simplifies things enormously.
 
 This project is a rewrite of the Java project, 
 [JActor2](https://github.com/laforge49/JActor2), 
-which makes it
-easy to plan the implementation:
+which makes it easy to plan the implementation:
 
   - Two way messaging is complete.
   - Exception handling is complete.
-  - Constrained time --todo.
-  - Constrained resources is complete.
+  - Constrained resources is half done.
   - Single response assurance is complete.
   - Response assurance is complete.
 
