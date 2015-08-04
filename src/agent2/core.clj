@@ -284,11 +284,12 @@ anywhere."
   (if (complete?) (throw (Exception. "already closed.")))
   (context-inc :outstanding-requests 1)
   (context-inc :requests-counter 1)
-  (if (> (context-get :requests-counter) (context-get :max-requests))
+  (when (> (context-get :requests-counter) (context-get :max-requests))
     (throw (Exception. "Exceeded max requests")))
   (let [request-depth (context-get :request-depth)]
-    (if (= 0 request-depth)
-      (throw (Exception. "Exceeded request depth")))
+    (when (= 0 request-depth)
+      (throw (Exception. "Exceeded request depth"))
+      )
     (send ag process-request [(create-context-atom ag {:reply            fr
                                                        :ensure-response  true
                                                        :requests-counter 0

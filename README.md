@@ -27,7 +27,7 @@ which makes it easy to plan the implementation:
 
   - Two way messaging is complete.
   - Exception handling is complete.
-  - Constrained resources is half done.
+  - Constrained resources is complete.
   - Single response assurance is complete.
   - Response assurance is complete.
 

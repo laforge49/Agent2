@@ -45,6 +45,19 @@
 (deftest too-many-requests
   (is (= r44 "Exceeded max requests")))
 
+(def a53 (agent 53))
+(defn check53 [_]
+  (reduce-request-depth 0)
+  (request a53 return-state () ignore-result)
+  (request a53 return-state () ignore-result)
+  (request a53 return-state () ignore-result)
+  (reply 999)
+  )
+(def a54 (agent 54))
+(def r54 (.getMessage @(agent-promise a54 check53)))
+(deftest too-many-requests
+  (is (= r54 "Exceeded request depth")))
+
 (defn dbz [_]
   (/ 0 0))
 
