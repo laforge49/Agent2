@@ -124,7 +124,16 @@ Returns the new context atom."
   [max-requests]
   (context-assoc! :max-requests max-requests))
 
+;;# reduce-request-depth
+
 (defn reduce-request-depth
+
+  "Set request-depth to a smaller value:
+
+  new-request-depth - The smaller value.
+
+Default value is Integer/MAX_VALUE."
+
   [new-request-depth]
   (let [request-depth (context-get :request-depth)]
     (if (< new-request-depth request-depth)
@@ -157,6 +166,16 @@ Returns the new context atom."
   [key increment]
   (context-assoc! key
                   (+ increment (context-get key))))
+
+;;# disable-ensure-response
+
+(defn disable-ensure-response
+
+  "Clears the ensure-response flag, allowing the use of
+  cross-context replies."
+
+  []
+  (context-assoc! :ensure-response nil))
 
 (declare exception-reply)
 
