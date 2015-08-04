@@ -62,10 +62,11 @@ Returns the new context atom."
 (defn- context-get
   "Returns the value associated with a given key in the current context:
 
-     key - The key into the context map."
+     ctx-atom - Defaults to *context-atom*.
+     key      - The key into the context map."
 
-  [key]
-  (key @*context-atom*))
+  ([key] (context-get *context-atom* key))
+  ([ctx-atom key] (key @ctx-atom)))
 
 ;;# context-assoc!
 
@@ -75,15 +76,17 @@ Returns the new context atom."
      key   - The key into the context map.
      value - The new value to be associated with the key."
 
-  [key value]
-  (swap! *context-atom* (fn [m] (assoc m key value))))
+  ([key value] (context-assoc! *context-atom* key value))
+  ([ctx-atom key value] (swap! ctx-atom (fn [m] (assoc m key value)))))
 
 ;;# complete?
 
 (defn- complete?
+
   "Returns true once a response or an exception has been sent."
-  []
-  (context-get :complete))
+
+  ([] (context-get :complete))
+  ([ctx-atom] (context-get ctx-atom :complete)))
 
 ;;# ensure-response?
 
@@ -293,7 +296,7 @@ anywhere."
     (send ag process-request [(create-context-atom ag {:reply            fr
                                                        :ensure-response  true
                                                        :requests-counter 0
-                                                       :request-depth (- request-depth 1)})
+                                                       :request-depth    (- request-depth 1)})
                               (cons f args)])))
 
 ;;# reply
@@ -301,7 +304,8 @@ anywhere."
 (defn reply
   "Reply to a request via a buffered message:
 
-     v - The response.
+     v        - The response.
+     ctx-atom - Defaults to *context-atom*.
 
 No response is sent if the operating context is for a signal rather
 than for a request.
@@ -313,14 +317,15 @@ The request and reply functions can only be used when processing a
 signal, request, response or exception. Signals and promise-request
 can be used anywhere."
 
-  [v]
-  (if-not (complete?)
-    (let [src-ctx-atom (context-get :src-ctx-atom)]
-      (context-assoc! :complete true)
-      (if src-ctx-atom
-        (let [fr (context-get :reply)
-              src-agent (:agent @src-ctx-atom)]
-          (send src-agent process-response [src-ctx-atom (list fr v)]))))))
+  ([v] (reply *context-atom* v))
+  ([ctx-atom v]
+   (when-not (complete? ctx-atom)
+     (context-assoc! ctx-atom :complete true)
+     (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)]
+       (if src-ctx-atom
+         (let [fr (context-get ctx-atom :reply)
+               src-agent (:agent @src-ctx-atom)]
+           (send src-agent process-response [src-ctx-atom (list fr v)])))))))
 
 ;;# exception-processor
 
