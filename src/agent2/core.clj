@@ -24,6 +24,7 @@ Minimum initial properties:
      :src-ctx-atom     - The atom of the creating context.
      :requests-counter - A count of the number of
                          requests that have been sent.
+     :request-depth    - The max allowed depth of requests.
 
 
 Additional properties:
@@ -119,6 +120,12 @@ Returns the new context atom."
 
   [max-requests]
   (context-assoc! :max-requests max-requests))
+
+(defn reduce-request-depth
+  [new-request-depth]
+  (let [request-depth (context-get :request-depth)]
+    (if (< new-request-depth request-depth)
+      (context-assoc! :request-depth new-request-depth))))
 
 ;;# set-exception-handler
 
@@ -241,7 +248,8 @@ signal, request, response or exception. Signals and promise-request can be used
 anywhere."
 
   [ag f & args]
-  (send ag process-request [(create-context-atom ag {:requests-counter 0})
+  (send ag process-request [(create-context-atom ag {:requests-counter 0
+                                                     :request-depth    Integer/MAX_VALUE})
                             (cons f args)]))
 
 ;;# request
@@ -278,10 +286,14 @@ anywhere."
   (context-inc :requests-counter 1)
   (if (> (context-get :requests-counter) (context-get :max-requests))
     (throw (Exception. "Exceeded max requests")))
-  (send ag process-request [(create-context-atom ag {:reply            fr
-                                                     :ensure-response  true
-                                                     :requests-counter 0})
-                            (cons f args)]))
+  (let [request-depth (context-get :request-depth)]
+    (if (= 0 request-depth)
+      (throw (Exception. "Exceeded request depth")))
+    (send ag process-request [(create-context-atom ag {:reply            fr
+                                                       :ensure-response  true
+                                                       :requests-counter 0
+                                                       :request-depth (- request-depth 1)})
+                              (cons f args)])))
 
 ;;# reply
 
