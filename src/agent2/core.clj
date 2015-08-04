@@ -302,7 +302,7 @@ anywhere."
 ;;# reply
 
 (defn reply
-  "Reply to a request via a buffered message:
+  "Reply to a request:
 
      v        - The response.
      ctx-atom - Defaults to *context-atom*.
