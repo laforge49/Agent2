@@ -25,7 +25,8 @@ Minimum initial properties:
      :requests-counter - A count of the number of
                          requests that have been sent.
      :request-depth    - The max allowed depth of requests.
-
+     :complete-atom    - True once a response or an
+                         exception has been sent.
 
 Additional properties:
 
@@ -36,8 +37,6 @@ Additional properties:
      :exception-handler    - A function for processing an
                              exception.
      :agent-value          - The value of the agent.
-     :complete             - True once a response or an
-                             exception has been sent.
      :outstanding-requests - Number of pending responses.
      :assure-response      - Requires either completion or
                              outstanding responses.
@@ -87,8 +86,8 @@ Returns the new context atom."
 
   "Returns true once a response or an exception has been sent."
 
-  ([] (context-get :complete))
-  ([ctx-atom] (context-get ctx-atom :complete)))
+  ([] @(context-get :complete-atom))
+  ([ctx-atom] @(context-get ctx-atom :complete-atom)))
 
 ;;# ensure-response?
 
@@ -229,7 +228,6 @@ which received a signal.
 Returns a new agent value."
 
   [agent-value [ctx-atom op]]
-  (if (complete?) (throw (Exception. "already closed.")))
   (if (nil? (context-get :max-requests))
     (context-assoc! :max-requests Long/MAX_VALUE))
   (context-assoc! :agent-value agent-value)
@@ -284,7 +282,8 @@ The signal function can be used anywhere."
 
   [ag f & args]
   (send ag process-request [(create-context-atom ag {:requests-counter 0
-                                                     :request-depth    Integer/MAX_VALUE})
+                                                     :request-depth    Integer/MAX_VALUE
+                                                     :complete-atom    (atom nil)})
                             (cons f args)]))
 
 ;;# request
@@ -326,7 +325,8 @@ The request function can only be used within the scope of a context map."
     (send ag process-request [(create-context-atom ag {:reply            fr
                                                        :ensure-response  true
                                                        :requests-counter 0
-                                                       :request-depth    (- request-depth 1)})
+                                                       :request-depth    (- request-depth 1)
+                                                       :complete-atom    (atom nil)})
                               (cons f args)])))
 
 ;;# reply
@@ -347,15 +347,15 @@ The reply function can only be used within the scope of a context map."
 
   ([v] (reply *context-atom* v))
   ([ctx-atom v]
-   (when-not (complete? ctx-atom)
-     (context-assoc! ctx-atom :complete true)
-     (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
-           prom (context-get ctx-atom :promise)]
-       (cond
-         src-ctx-atom (let [fr (context-get ctx-atom :reply)
-                            src-agent (:agent @src-ctx-atom)]
-                        (send src-agent process-response [src-ctx-atom (list fr v)]))
-         prom (deliver prom v))))))
+   (let [complete-atom (context-get ctx-atom :complete-atom)]
+     (if (compare-and-set! complete-atom nil true)
+       (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
+             prom (context-get ctx-atom :promise)]
+         (cond
+           src-ctx-atom (let [fr (context-get ctx-atom :reply)
+                              src-agent (:agent @src-ctx-atom)]
+                          (send src-agent process-response [src-ctx-atom (list fr v)]))
+           prom (deliver prom v)))))))
 
 ;;# exception-processor
 
@@ -387,8 +387,8 @@ The exception-reply function can only be used within the scope of a context map.
 
   ([exception] (exception-reply *context-atom* exception))
   ([ctx-atom exception]
-   (when-not (complete?)
-     (context-assoc! ctx-atom :complete true)
+   (let [complete-atom (context-get ctx-atom :complete-atom)]
+     (if (compare-and-set! complete-atom nil true)
      (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
            prom (context-get ctx-atom :promise)]
        (cond
@@ -396,7 +396,7 @@ The exception-reply function can only be used within the scope of a context map.
                         (send src-agent process-response
                               [src-ctx-atom (list exception-processor exception)]))
          prom (deliver prom exception)
-         :else (throw exception))))))
+         :else (throw exception)))))))
 
 ;;# request-promise
 
@@ -419,6 +419,7 @@ The request-promise function can not be used within the scope of a context map."
     (send ag process-request [(create-context-atom ag {:requests-counter 0
                                                        :request-depth    Integer/MAX_VALUE
                                                        :ensure-response  true
-                                                       :promise          prom})
+                                                       :promise          prom
+                                                       :complete-atom    (atom nil)})
                               (cons f args)])
     prom))

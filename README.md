@@ -1,5 +1,5 @@
 # agent2
-2-way messaging for Clojure Agents.
+2-way messaging & weak real-time for Clojure Agents.
 
 When you send to an Agent there is no indication that the function
 sent was executed or was dropped when the agent was restarted beyond

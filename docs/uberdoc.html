@@ -2890,6 +2890,8 @@ net.brehaut.ClojureTools = (function (SH) {
  :requests-counter - A count of the number of
                      requests that have been sent.
  :request-depth    - The max allowed depth of requests.
+ :complete-atom    - True once a response or an
+                     exception has been sent.
 </code></pre>
 
 <p>Additional properties:</p>
@@ -2901,8 +2903,6 @@ net.brehaut.ClojureTools = (function (SH) {
  :exception-handler    - A function for processing an
                          exception.
  :agent-value          - The value of the agent.
- :complete             - True once a response or an
-                         exception has been sent.
  :outstanding-requests - Number of pending responses.
  :assure-response      - Requires either completion or
                          outstanding responses.
@@ -2943,8 +2943,8 @@ net.brehaut.ClojureTools = (function (SH) {
   ([ctx-atom key value] (swap! ctx-atom (fn [m] (assoc m key value)))))</pre></td></tr><tr><td class="docs"><h1>complete?</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Returns true once a response or an exception has been sent.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- complete?
-  ([] (context-get :complete))
-  ([ctx-atom] (context-get ctx-atom :complete)))</pre></td></tr><tr><td class="docs"><h1>ensure-response?</h1>
+  ([] @(context-get :complete-atom))
+  ([ctx-atom] @(context-get ctx-atom :complete-atom)))</pre></td></tr><tr><td class="docs"><h1>ensure-response?</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Returns true if a response must be ensured.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- ensure-response?
   []
@@ -3048,7 +3048,6 @@ which received a signal.</p>
 <p>Returns a new agent value.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- process-action
   [agent-value [ctx-atom op]]
-  (if (complete?) (throw (Exception. &quot;already closed.&quot;)))
   (if (nil? (context-get :max-requests))
     (context-assoc! :max-requests Long/MAX_VALUE))
   (context-assoc! :agent-value agent-value)
@@ -3091,7 +3090,8 @@ via the send function.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn signal
   [ag f &amp; args]
   (send ag process-request [(create-context-atom ag {:requests-counter 0
-                                                     :request-depth    Integer/MAX_VALUE})
+                                                     :request-depth    Integer/MAX_VALUE
+                                                     :complete-atom    (atom nil)})
                             (cons f args)]))</pre></td></tr><tr><td class="docs"><h1>request</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>A 2-way message exchange to operate on an agent and get a reply
   without blocking:</p>
@@ -3129,7 +3129,8 @@ is an issue that must be managed by the application.</p>
     (send ag process-request [(create-context-atom ag {:reply            fr
                                                        :ensure-response  true
                                                        :requests-counter 0
-                                                       :request-depth    (- request-depth 1)})
+                                                       :request-depth    (- request-depth 1)
+                                                       :complete-atom    (atom nil)})
                               (cons f args)])))</pre></td></tr><tr><td class="docs"><h1>reply</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Reply to a request:</p>
 
@@ -3147,15 +3148,15 @@ responses be processed.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn reply
   ([v] (reply *context-atom* v))
   ([ctx-atom v]
-   (when-not (complete? ctx-atom)
-     (context-assoc! ctx-atom :complete true)
-     (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
-           prom (context-get ctx-atom :promise)]
-       (cond
-         src-ctx-atom (let [fr (context-get ctx-atom :reply)
-                            src-agent (:agent @src-ctx-atom)]
-                        (send src-agent process-response [src-ctx-atom (list fr v)]))
-         prom (deliver prom v))))))</pre></td></tr><tr><td class="docs"><h1>exception-processor</h1>
+   (let [complete-atom (context-get ctx-atom :complete-atom)]
+     (if (compare-and-set! complete-atom nil true)
+       (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
+             prom (context-get ctx-atom :promise)]
+         (cond
+           src-ctx-atom (let [fr (context-get ctx-atom :reply)
+                              src-agent (:agent @src-ctx-atom)]
+                          (send src-agent process-response [src-ctx-atom (list fr v)]))
+           prom (deliver prom v)))))))</pre></td></tr><tr><td class="docs"><h1>exception-processor</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Processes an exception response by simply rethrowing the exception:</p>
 
 <pre><code> agent-value - The value of the local context.
@@ -3181,8 +3182,8 @@ rather than for a request. Rather, the exception is simply thrown.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn exception-reply
   ([exception] (exception-reply *context-atom* exception))
   ([ctx-atom exception]
-   (when-not (complete?)
-     (context-assoc! ctx-atom :complete true)
+   (let [complete-atom (context-get ctx-atom :complete-atom)]
+     (if (compare-and-set! complete-atom nil true)
      (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
            prom (context-get ctx-atom :promise)]
        (cond
@@ -3190,7 +3191,7 @@ rather than for a request. Rather, the exception is simply thrown.</p>
                         (send src-agent process-response
                               [src-ctx-atom (list exception-processor exception)]))
          prom (deliver prom exception)
-         :else (throw exception))))))</pre></td></tr><tr><td class="docs"><h1>request-promise</h1>
+         :else (throw exception)))))))</pre></td></tr><tr><td class="docs"><h1>request-promise</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Sends a function to an agent and returns a promise for the result:</p>
 
 <pre><code> ag   - The target agent.
@@ -3210,7 +3211,8 @@ pre-pended to its list of args.</p>
     (send ag process-request [(create-context-atom ag {:requests-counter 0
                                                        :request-depth    Integer/MAX_VALUE
                                                        :ensure-response  true
-                                                       :promise          prom})
+                                                       :promise          prom
+                                                       :complete-atom    (atom nil)})
                               (cons f args)])
     prom))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_agent2.core">agent2.core</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
 SyntaxHighlighter.all();
