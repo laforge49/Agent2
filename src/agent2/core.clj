@@ -210,15 +210,13 @@ The set-exception-handler function can only be used within the scope of a contex
         (catch Exception e (exception-reply exception)))
       (exception-reply exception))))
 
-;;# process-action
+;;# process-operation
 
-(defn- process-action
+(defn- process-operation
   "Process an action:
 
-     agent-value    - The value of the agent.
-     [ctx-atom op]  - The action to be processed,
-                      comprised of an operational
-                      context atom and an operation.
+     f    - The function to be evaluated.
+     args - Arguments to the function.
 
 Any exceptions thrown while processing the action are either passed to
 the local exception handler or, failing that, passed to the source if
@@ -227,18 +225,17 @@ which received a signal.
 
 Returns a new agent value."
 
-  [agent-value [ctx-atom op]]
+  [f args]
   (if (nil? (context-get :max-requests))
     (context-assoc! :max-requests Long/MAX_VALUE))
-  (context-assoc! :agent-value agent-value)
   (try
-    (apply (first op) agent-value (rest op))
+    (apply f args)
     (let [good (or (not (ensure-response?))
                    (complete?)
                    (outstanding-requests?))]
       (if-not good (throw (Exception. "Missing response"))))
     (catch Exception e
-      (invoke-exception-handler agent-value e)))
+      (invoke-exception-handler (context-get :agent-value) e)))
   (context-get :agent-value)
   )
 
@@ -248,7 +245,8 @@ Returns a new agent value."
   "Process an action sent by a request or request-promise."
   [agent-value [ctx-atom op]]
   (binding [*context-atom* ctx-atom]
-    (process-action agent-value [ctx-atom op])
+    (context-assoc! :agent-value agent-value)
+    (process-operation (first op) (cons agent-value (rest op)))
     ))
 
 ;;# process-response
@@ -257,8 +255,9 @@ Returns a new agent value."
   "Process a response sent by a reply or reply-exception."
   [agent-value [ctx-atom op]]
   (binding [*context-atom* ctx-atom]
+    (context-assoc! :agent-value agent-value)
     (context-inc :outstanding-requests -1)
-    (process-action agent-value [ctx-atom op])
+    (process-operation (first op) (cons agent-value (rest op)))
     ))
 
 ;;# signal
