@@ -135,7 +135,7 @@ The set-max-response function can only be used within the scope of a context map
 
   "Set request-depth to a smaller value:
 
-  new-request-depth - The smaller value.
+     new-request-depth - The smaller value.
 
 Default value is Integer/MAX_VALUE.
 
@@ -154,9 +154,8 @@ The reduce-request-depth function can only be used within the scope of a context
 
      exception-handler - The new exception handler function.
 
-  The exception handler function takes two arguments:
+  The exception handler function takes one argument:
 
-     agent-value - The value of the agent.
      exception   - The exception thrown.
 
 The set-exception-handler function can only be used within the scope of a context map."
@@ -198,15 +197,14 @@ The set-exception-handler function can only be used within the scope of a contex
   there is no exception handler, or if the exception handler itself
   throws an exception, pass the original exception to the source:
 
-     ag-value  - The value of the agent.
      exception - The exception to be passed to the
                  exception handler."
 
-  [ag-value exception]
+  [exception]
   (let [exception-handler (context-get :exception-handler)]
     (if exception-handler
       (try
-        (exception-handler ag-value exception)
+        (exception-handler exception)
         (catch Exception e (exception-reply exception)))
       (exception-reply exception))))
 
@@ -235,7 +233,7 @@ Returns a new agent value."
                    (outstanding-requests?))]
       (if-not good (throw (Exception. "Missing response"))))
     (catch Exception e
-      (invoke-exception-handler (context-get :agent-value) e)))
+      (invoke-exception-handler e)))
   (context-get :agent-value)
   )
 
@@ -257,7 +255,7 @@ Returns a new agent value."
   (binding [*context-atom* ctx-atom]
     (context-assoc! :agent-value agent-value)
     (context-inc :outstanding-requests -1)
-    (process-operation (first op) (cons agent-value (rest op)))
+    (process-operation (first op) (rest op))
     ))
 
 ;;# signal
@@ -302,7 +300,7 @@ args as the remaining arguments. Its return value is ignored. This
 function should use the set-agent-value function to update the state of
 the agent. A response is returned by calling the reply function.
 
-The fr function takes two arguments, the value of the local agent and
+The fr function takes one argument,
 the response returned by the reply function. This function is called
 within the threading context of the agent which invoked the request. But
 processing is asynchronous--there is no thread blocking. Rather, the
@@ -339,7 +337,7 @@ The request function can only be used within the scope of a context map."
 No response is sent if the operating context is for a signal rather
 than for a request or request-promise.
 
-Once reply is called, requests can not be sent, nor will
+Once reply or exception-reply is called, requests can not be sent, nor will
 responses be processed.
 
 The reply function can only be used within the scope of a context map."
@@ -361,11 +359,10 @@ The reply function can only be used within the scope of a context map."
 (defn- exception-processor
   "Processes an exception response by simply rethrowing the exception:
 
-     agent-value - The value of the local context.
      exception   - The exception thrown while
                    processing a request."
 
-  [agent-value exception]
+  [exception]
   (throw exception))
 
 ;;# exception-reply
@@ -376,7 +373,7 @@ The reply function can only be used within the scope of a context map."
      ctx-atom - Defaults to *context-atom*.
      exception - The exception.
 
-Once reply is called, requests can not be sent, nor will
+Once reply or exception-reply is called, requests can not be sent, nor will
 responses be processed.
 
 No response is sent if the current operating context is for a signal

@@ -21,7 +21,7 @@
   (is (= 23 r22)))
 
 (def a33 (agent 33))
-(defn ignore-result [_ _])
+(defn ignore-result [_])
 (defn check33 [_]
   (request a33 return-state () ignore-result)
   (request a33 return-state () ignore-result)
@@ -61,7 +61,7 @@
 (defn dbz [_]
   (/ 0 0))
 
-(defn dbzr [_ _]
+(defn dbzr [_]
   (/ 0 0))
 
 (def p1 (promise))
@@ -86,7 +86,7 @@
 (def p3 (promise))
 (defn eh3 [a e]
   (deliver p3 "got error"))
-(defn eh3b [a e]
+(defn eh3b [e]
   (.printStackTrace e))
 (def a3 (agent true :error-handler eh3))
 (def b3 (agent "Fred" :error-handler eh3b))
@@ -116,7 +116,7 @@
 (defn eh5 [a e]
   (.printStackTrace e))
 (def p5 (promise))
-(defn exh5 [_ _]
+(defn exh5 [_]
   (deliver p5 "got exception"))
 (def a5 (agent "Sam" :error-handler eh5))
 (signal a5 (fn [_]
@@ -130,7 +130,7 @@
 (defn eh6 [a e]
   (.printStackTrace e)
   (deliver p6 "got error"))
-(defn exh6 [_ _]
+(defn exh6 [_]
   (deliver p6 "got exception"))
 (def a6 (agent true :error-handler eh6))
 (def b6 (agent "Fred"))
@@ -147,7 +147,7 @@
 (def p7 (promise))
 (defn eh7 [a e]
   (deliver p7 "got error"))
-(defn exh7 [_ _]
+(defn exh7 [_]
   (deliver p7 "got exception"))
 (def a7 (agent true :error-handler eh7))
 (def b7 (agent "Fred"))
@@ -163,7 +163,7 @@
 
 (def a98 (agent 98))
 (def r98 (.getMessage @(request-promise a98 (fn [_] (set-exception-handler
-                                                   (fn [_ e]
+                                                   (fn [e]
                                                      (reply e)))))))
 (deftest missing-response
   (is (= r98 "Missing response")))
