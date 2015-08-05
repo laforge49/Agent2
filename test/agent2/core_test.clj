@@ -16,7 +16,7 @@
 
 (def a22 (agent 22 :error-handler eh))
 (signal a22 inc-state)
-(def r22 @(agent-promise a22 return-state))
+(def r22 @(request-promise a22 return-state))
 (deftest promise-request
   (is (= 23 r22)))
 
@@ -28,7 +28,7 @@
   (request a33 return-state () ignore-result)
   )
 (def a34 (agent 34))
-(def r34 (.getMessage @(agent-promise a34 check33)))
+(def r34 (.getMessage @(request-promise a34 check33)))
 (deftest missing-response2
   (is (= r34 "Missing response")))
 
@@ -41,7 +41,7 @@
   (reply 999)
   )
 (def a44 (agent 44))
-(def r44 (.getMessage @(agent-promise a44 check43)))
+(def r44 (.getMessage @(request-promise a44 check43)))
 (deftest too-many-requests
   (is (= r44 "Exceeded max requests")))
 
@@ -54,7 +54,7 @@
   (reply 999)
   )
 (def a54 (agent 54))
-(def r54 (.getMessage @(agent-promise a54 check53)))
+(def r54 (.getMessage @(request-promise a54 check53)))
 (deftest too-many-requests
   (is (= r54 "Exceeded request depth")))
 
@@ -162,7 +162,7 @@
   (is (= q7 "got exception")))
 
 (def a98 (agent 98))
-(def r98 (.getMessage @(agent-promise a98 (fn [_] (set-exception-handler
+(def r98 (.getMessage @(request-promise a98 (fn [_] (set-exception-handler
                                                    (fn [_ e]
                                                      (reply e)))))))
 (deftest missing-response

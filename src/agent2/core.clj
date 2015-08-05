@@ -31,6 +31,8 @@ Additional properties:
 
      :reply                - The callback function for
                              processing a response.
+     :promise              - A promise used to return a
+                             response.
      :exception-handler    - A function for processing an
                              exception.
      :agent-value          - The value of the agent.
@@ -169,13 +171,14 @@ Default value is Integer/MAX_VALUE."
 
 ;;# disable-ensure-response
 
-(defn disable-ensure-response
+(defn get-context-atom
 
-  "Clears the ensure-response flag, allowing the use of
-  cross-context replies."
+  "Clears the ensure-response flag and
+  returns the conext atom for use in cross-context replies."
 
   []
-  (context-assoc! :ensure-response nil))
+  (context-assoc! :ensure-response nil)
+  *context-atom*)
 
 (declare exception-reply)
 
@@ -266,7 +269,7 @@ Signals are passed to the target agent
 via the send function.
 
 The request and reply functions can only be used when processing a
-signal, request, response or exception. Signals and promise-request can be used
+signal, request, response or exception. Signals and request-promise can be used
 anywhere."
 
   [ag f & args]
@@ -299,7 +302,7 @@ processing of requests and responses are interleaved. Isolation then
 is an issue that must be managed by the application.
 
 The request and reply functions can only be used when processing a
-signal, request, response or exception. Signals and promise-request can be used
+signal, request, response or exception. Signals and request-promise can be used
 anywhere."
 
   [ag f args fr]
@@ -323,8 +326,8 @@ anywhere."
 (defn reply
   "Reply to a request:
 
-     v        - The response.
      ctx-atom - Defaults to *context-atom*.
+     v        - The response.
 
 No response is sent if the operating context is for a signal rather
 than for a request.
@@ -333,18 +336,20 @@ Once reply is called, requests can not be sent, nor will
 responses be processed.
 
 The request and reply functions can only be used when processing a
-signal, request, response or exception. Signals and promise-request
+signal, request, response or exception. Signals and request-promise
 can be used anywhere."
 
   ([v] (reply *context-atom* v))
   ([ctx-atom v]
    (when-not (complete? ctx-atom)
      (context-assoc! ctx-atom :complete true)
-     (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)]
-       (if src-ctx-atom
-         (let [fr (context-get ctx-atom :reply)
-               src-agent (:agent @src-ctx-atom)]
-           (send src-agent process-response [src-ctx-atom (list fr v)])))))))
+     (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
+           prom (context-get ctx-atom :promise)]
+       (cond
+         src-ctx-atom (let [fr (context-get ctx-atom :reply)
+                            src-agent (:agent @src-ctx-atom)]
+                        (send src-agent process-response [src-ctx-atom (list fr v)]))
+         prom (deliver prom v))))))
 
 ;;# exception-processor
 
@@ -363,6 +368,7 @@ can be used anywhere."
 (defn- exception-reply
   "Pass an exception to the source which invoked the request, if any:
 
+     ctx-atom - Defaults to *context-atom*.
      exception - The exception.
 
 Once reply is called, requests can not be sent, nor will
@@ -371,43 +377,22 @@ responses be processed.
 No response is sent if the current operating context is for a signal
 rather than for a request. Rather, the exception is simply thrown."
 
-  [exception]
-  (if-not (complete?)
-    (let [src-ctx-atom (context-get :src-ctx-atom)]
-      (context-assoc! :complete true)
-      (if src-ctx-atom
-        (let [src-agent (:agent @src-ctx-atom)]
-          (send src-agent process-response
-                [src-ctx-atom (list exception-processor exception)]))
-        (throw exception)))))
-
-;;# forward-request
-
-(defn- forward-request
-  "Receives a request and returns the response via a promise:
-
-     agent-value     - The value of the agent.
-     p               - The promise to hold the response.
-     ag              - The target agent.
-     f               - Function being sent.
-     args            - Arg list of the function being sent.
-
-The function f is invoked with the target agent's value
-pre-pended to its list of args."
-
-  [agent-value p ag f args]
-  (context-assoc! :exception-handler
-                  (fn [av e]
-                    (deliver p e)))
-  (request ag f args
-           (fn [agent-value v]
-             (deliver p v)
-             ))
-  )
+  ([exception] (exception-reply *context-atom* exception))
+  ([ctx-atom exception]
+   (when-not (complete?)
+     (context-assoc! ctx-atom :complete true)
+     (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
+           prom (context-get ctx-atom :promise)]
+       (cond
+         src-ctx-atom (let [src-agent (:agent @src-ctx-atom)]
+                        (send src-agent process-response
+                              [src-ctx-atom (list exception-processor exception)]))
+         prom (deliver prom exception)
+         :else (throw exception))))))
 
 ;;# agent-future
 
-(defn agent-promise
+(defn request-promise
   "Sends a function to an agent and returns a promise for the result:
 
      ag   - The target agent.
@@ -418,16 +403,19 @@ The function f is invoked with the target agent's value
 pre-pended to its list of args.
 
 The request and reply functions can only be used when processing a
-signal, request, response or exception. Signals and promise-request can be used
+signal, request, response or exception. Signals and request-promise can be used
 anywhere.
 
-Just remember when using agent-promise while processing a signal, request,
+Just remember when using request-promise while processing a signal, request,
 response or exception that there are only a few threads in the default
 threadpool and blocking a thread to dereference a promise is generally
 not a good idea."
 
   [ag f & args]
-  (let [p (promise)]
-    (signal (agent "transporter") forward-request p ag f args)
-    p
-    ))
+  (let [prom (promise)]
+    (send ag process-request [(create-context-atom ag {:requests-counter 0
+                                                       :request-depth    Integer/MAX_VALUE
+                                                       :ensure-response  true
+                                                       :promise          prom})
+                              (cons f args)])
+    prom))
