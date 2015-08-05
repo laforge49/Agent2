@@ -59,7 +59,7 @@ Returns the new context atom."
                [:src-ctx-atom src-ctx-atom]
                [:outstanding-requests 0]))))
 
-;;# context-get-context-atom
+;;# context-get
 
 (defn- context-get
   "Returns the value associated with a given key in the current context:
@@ -110,7 +110,9 @@ Returns the new context atom."
 
   "Change the value of the agent:
 
-     agent-value - The new agent value."
+     agent-value - The new agent value.
+
+The set-agent-value function can only be used within the scope of a context map."
 
   [agent-value]
   (context-assoc! :agent-value agent-value))
@@ -121,7 +123,9 @@ Returns the new context atom."
 
   "Set the maximum number of requests that can be sent:
 
-     max-requests - The limit before an exception is thrown."
+     max-requests - The limit before an exception is thrown.
+
+The set-max-response function can only be used within the scope of a context map."
 
   [max-requests]
   (context-assoc! :max-requests max-requests))
@@ -134,7 +138,9 @@ Returns the new context atom."
 
   new-request-depth - The smaller value.
 
-Default value is Integer/MAX_VALUE."
+Default value is Integer/MAX_VALUE.
+
+The reduce-request-depth function can only be used within the scope of a context map."
 
   [new-request-depth]
   (let [request-depth (context-get :request-depth)]
@@ -152,12 +158,14 @@ Default value is Integer/MAX_VALUE."
   The exception handler function takes two arguments:
 
      agent-value - The value of the agent.
-     exception   - The exception thrown."
+     exception   - The exception thrown.
+
+The set-exception-handler function can only be used within the scope of a context map."
 
   [exception-handler]
   (context-assoc! :exception-handler exception-handler))
 
-;;# inc-outstanding
+;;# context-inc
 
 (defn- context-inc
   "Add to the selected value in the context map:
@@ -169,12 +177,14 @@ Default value is Integer/MAX_VALUE."
   (context-assoc! key
                   (+ increment (context-get key))))
 
-;;# disable-ensure-response
+;;# get-context-atom
 
 (defn get-context-atom
 
   "Clears the ensure-response flag and
-  returns the conext atom for use in cross-context replies."
+  returns the implicit *conext-atom* for use in cross-context replies.
+
+  The get-context-atom function can only be used within the scope of a context map."
 
   []
   (context-assoc! :ensure-response nil)
@@ -237,6 +247,7 @@ Returns a new agent value."
 ;;# process-request
 
 (defn- process-request
+  "Process an action sent by a request or request-promise."
   [agent-value [ctx-atom op]]
   (binding [*context-atom* ctx-atom]
     (process-action agent-value [ctx-atom op])
@@ -245,6 +256,7 @@ Returns a new agent value."
 ;;# process-response
 
 (defn- process-response
+  "Process a response sent by a reply or reply-exception."
   [agent-value [ctx-atom op]]
   (binding [*context-atom* ctx-atom]
     (context-inc :outstanding-requests -1)
@@ -268,9 +280,7 @@ the agent.
 Signals are passed to the target agent
 via the send function.
 
-The request and reply functions can only be used when processing a
-signal, request, response or exception. Signals and request-promise can be used
-anywhere."
+The signal function can be used anywhere."
 
   [ag f & args]
   (send ag process-request [(create-context-atom ag {:requests-counter 0
@@ -301,9 +311,7 @@ processing is asynchronous--there is no thread blocking. Rather, the
 processing of requests and responses are interleaved. Isolation then
 is an issue that must be managed by the application.
 
-The request and reply functions can only be used when processing a
-signal, request, response or exception. Signals and request-promise can be used
-anywhere."
+The request function can only be used within the scope of a context map."
 
   [ag f args fr]
   (if (complete?) (throw (Exception. "already closed.")))
@@ -330,14 +338,12 @@ anywhere."
      v        - The response.
 
 No response is sent if the operating context is for a signal rather
-than for a request.
+than for a request or request-promise.
 
 Once reply is called, requests can not be sent, nor will
 responses be processed.
 
-The request and reply functions can only be used when processing a
-signal, request, response or exception. Signals and request-promise
-can be used anywhere."
+The reply function can only be used within the scope of a context map."
 
   ([v] (reply *context-atom* v))
   ([ctx-atom v]
@@ -365,7 +371,7 @@ can be used anywhere."
 
 ;;# exception-reply
 
-(defn- exception-reply
+(defn exception-reply
   "Pass an exception to the source which invoked the request, if any:
 
      ctx-atom - Defaults to *context-atom*.
@@ -375,7 +381,9 @@ Once reply is called, requests can not be sent, nor will
 responses be processed.
 
 No response is sent if the current operating context is for a signal
-rather than for a request. Rather, the exception is simply thrown."
+rather than for a request. Rather, the exception is simply thrown.
+
+The exception-reply function can only be used within the scope of a context map."
 
   ([exception] (exception-reply *context-atom* exception))
   ([ctx-atom exception]
@@ -390,7 +398,7 @@ rather than for a request. Rather, the exception is simply thrown."
          prom (deliver prom exception)
          :else (throw exception))))))
 
-;;# agent-future
+;;# request-promise
 
 (defn request-promise
   "Sends a function to an agent and returns a promise for the result:
@@ -402,16 +410,11 @@ rather than for a request. Rather, the exception is simply thrown."
 The function f is invoked with the target agent's value
 pre-pended to its list of args.
 
-The request and reply functions can only be used when processing a
-signal, request, response or exception. Signals and request-promise can be used
-anywhere.
-
-Just remember when using request-promise while processing a signal, request,
-response or exception that there are only a few threads in the default
-threadpool and blocking a thread to dereference a promise is generally
-not a good idea."
+The request-promise function can not be used within the scope of a context map."
 
   [ag f & args]
+  (if *context-atom*
+    (throw (Exception. "Illegal use of request-promise within the scope of a context map.")))
   (let [prom (promise)]
     (send ag process-request [(create-context-atom ag {:requests-counter 0
                                                        :request-depth    Integer/MAX_VALUE
