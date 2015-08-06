@@ -3,7 +3,7 @@
 ;;# create-context-atom
 
 (defn- create-context-atom
-  "Create an atom with the context map for operating on an agent:
+  "Create an atom with the context map for 2-way messaging and weak real-time:
 
      src-ctx-atom - The atom for the operational context
                     creating the new context.
@@ -47,7 +47,7 @@ Returns the new context atom."
 ;;# context-get
 
 (defn- context-get
-  "Returns the value associated with a given key in the current context:
+  "Returns the value associated with a given key in the context:
 
      ctx-atom - Holds the context map.
      key      - The key into the context map."
@@ -69,7 +69,7 @@ Returns the new context atom."
 
 (defn- complete?
 
-  "Returns true once a response or an exception has been sent:
+  "Returns true iff a response or an exception has been returned:
 
      ctx-atom - Holds the context map."
 
@@ -99,12 +99,10 @@ Returns the new context atom."
 
 (defn set-agent-value
 
-  "Change the value of the agent:
+  "Change the subsequent value of the agent:
 
      ctx-atom - Holds the context map.
-     agent-value - The new agent value.
-
-The set-agent-value function can only be used within the scope of a context map."
+     agent-value - The new agent value."
 
   ([ctx-atom agent-value] (context-assoc! ctx-atom :agent-value agent-value)))
 
@@ -115,9 +113,7 @@ The set-agent-value function can only be used within the scope of a context map.
   "Set the maximum number of requests that can be sent:
 
      ctx-atom - Holds the context map.
-     max-requests - The limit before an exception is thrown.
-
-The set-max-response function can only be used within the scope of a context map."
+     max-requests - The limit before an exception is thrown."
 
   ([ctx-atom max-requests] (context-assoc! ctx-atom :max-requests max-requests)))
 
@@ -130,9 +126,7 @@ The set-max-response function can only be used within the scope of a context map
      ctx-atom - Holds the context map.
      new-request-depth - The smaller value.
 
-Default value is Integer/MAX_VALUE.
-
-The reduce-request-depth function can only be used within the scope of a context map."
+Default value is Integer/MAX_VALUE."
 
   ([ctx-atom new-request-depth] (let [request-depth (context-get ctx-atom :request-depth)]
                                   (if (< new-request-depth request-depth)
@@ -149,9 +143,7 @@ The reduce-request-depth function can only be used within the scope of a context
 
   The exception handler function takes one argument:
 
-     exception   - The exception thrown.
-
-The set-exception-handler function can only be used within the scope of a context map."
+     exception - The exception thrown."
 
   ([ctx-atom exception-handler] (context-assoc! ctx-atom :exception-handler exception-handler)))
 
@@ -173,9 +165,7 @@ The set-exception-handler function can only be used within the scope of a contex
 
   "Clears the ensure-response flag:
 
-       ctx-atom - Holds the context map.
-
-  The get-context-atom function can only be used within the scope of a context map."
+       ctx-atom - Holds the context map."
 
   [ctx-atom] (context-assoc! ctx-atom :ensure-response nil))
 
@@ -260,15 +250,10 @@ Returns a new agent value."
      f    - The function to operate on the agent.
      args - Optional arguments to f.
 
-The f function takes the target agent's value as its first argument and
-args as the remaining arguments. Its return value is ignored. This
-function should use the set-agent-value function to update the state of
-the agent.
-
-Signals are passed to the target agent
-via the send function.
-
-The signal function can be used anywhere."
+The f function takes the target agent's value as its first argument,
+an atom holding the context map as the second argument and
+args as the remaining arguments. Its return value is ignored.
+Use the set-agent-value function to update the value of the agent."
 
   ([ag f & args]
    (send ag process-request [(create-context-atom nil
@@ -289,19 +274,18 @@ The signal function can be used anywhere."
      fr   - The callback function which processes the
              response.
 
-The f function takes the target agent's value as its first argument and
-args as the remaining arguments. Its return value is ignored. This
-function should use the set-agent-value function to update the state of
+The f function takes the target agent's value as its first argument,
+an atom holding the context map as its second argument and
+args as the remaining arguments. Its return value is ignored.
+Use the set-agent-value function to update the state of
 the agent. A response is returned by calling the reply function.
 
 The fr function takes one argument,
 the response returned by the reply function. This function is called
 within the threading context of the agent which invoked the request. But
-processing is asynchronous--there is no thread blocking. Rather, the
+processing is asynchronous and there is no thread blocking. Rather, the
 processing of requests and responses are interleaved. Isolation then
-is an issue that must be managed by the application.
-
-The request function can only be used within the scope of a context map."
+is an issue that must be managed by the application."
 
   ([ctx-atom ag f args fr]
    (if (complete? ctx-atom) (throw (Exception. "already closed.")))
@@ -333,9 +317,7 @@ No response is sent if the operating context is for a signal rather
 than for a request or request-promise.
 
 Once reply or exception-reply is called, requests can not be sent, nor will
-responses be processed.
-
-The reply function can only be used within the scope of a context map."
+further responses be processed."
 
   ([ctx-atom v]
    (let [complete-atom (context-get ctx-atom :complete-atom)]
@@ -368,12 +350,10 @@ The reply function can only be used within the scope of a context map."
      exception - The exception.
 
 Once reply or exception-reply is called, requests can not be sent, nor will
-responses be processed.
+further responses be processed.
 
 No response is sent if the current operating context is for a signal
-rather than for a request. Rather, the exception is simply thrown.
-
-The exception-reply function can only be used within the scope of a context map."
+rather than for a request. Rather, the exception is simply thrown."
 
   ([ctx-atom exception]
    (let [complete-atom (context-get ctx-atom :complete-atom)]
@@ -396,8 +376,8 @@ The exception-reply function can only be used within the scope of a context map.
      f    - The function passed to the agent.
      args - Arguments passed to the function.
 
-The function f is invoked with the target agent's value
-pre-pended to its list of args."
+The function f is invoked with the target agent's value and an
+atom holding the context map pre-pended to its list of args."
 
   [ag f & args]
   (let [prom (promise)]
