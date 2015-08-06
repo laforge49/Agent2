@@ -2869,18 +2869,13 @@ net.brehaut.ClojureTools = (function (SH) {
 </script><title>agent2 -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="http://example.com/FIXME">agent2</a></h1><h2 class="project-version">0.1.0-SNAPSHOT</h2><br /><p>A Clojure version of JActor2,
                 based on the Clojure core agent.</p>
 </div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/clojure</td><td class="dotted"><hr /></td><td class="dep-version">1.6.0</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#agent2.core">agent2.core</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#agent2.core" name="agent2.core"><h1 class="project-name">agent2.core</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(ns agent2.core)</pre></td></tr><tr><td class="docs"><h1>*context-atom*</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Holds the context of an operation performed on an agent.</p>
-</td><td class="codes"><pre class="brush: clojure">(def ^{:dynamic true, :private true} *context-atom*
-  nil)</pre></td></tr><tr><td class="docs"><h1>create-context-atom</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Create an atom with the context map for operating on an agent:</p>
+</td><td class="codes"><pre class="brush: clojure">(ns agent2.core)</pre></td></tr><tr><td class="docs"><h1>create-context-atom</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Create an atom with the context map for 2-way messaging and weak real-time:</p>
 
-<pre><code> agent        - The agent to be operated on.
- properties   - Properties assigned to the context,
-                defaults to {}.
- src-ctx-atom - The atom for the operational context
-                creating the new context, defaults
-                to *context-atom*.
+<pre><code> src-ctx-atom - The atom for the operational context
+                creating the new context.
+ agent        - The agent to be operated on.
+ properties   - Properties assigned to the context.
 </code></pre>
 
 <p>Minimum initial properties:</p>
@@ -2915,129 +2910,117 @@ net.brehaut.ClojureTools = (function (SH) {
 
 <p>Returns the new context atom.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- create-context-atom
-  ([agent]
-   (create-context-atom agent {}))
-  ([agent properties]
-   (create-context-atom agent
-                        properties
-                        *context-atom*))
-  ([agent properties src-ctx-atom]
+  ([src-ctx-atom agent properties]
    (atom (conj properties [:agent agent]
                [:src-ctx-atom src-ctx-atom]
                [:outstanding-requests 0]))))</pre></td></tr><tr><td class="docs"><h1>context-get</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns the value associated with a given key in the current context:</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns the value associated with a given key in the context:</p>
 
-<pre><code> ctx-atom - Defaults to *context-atom*.
+<pre><code> ctx-atom - Holds the context map.
  key      - The key into the context map.
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn- context-get
-  ([key] (context-get *context-atom* key))
   ([ctx-atom key] (key @ctx-atom)))</pre></td></tr><tr><td class="docs"><h1>context-assoc!</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Associates a new value with a given key in the current context:</p>
 
-<pre><code> key   - The key into the context map.
- value - The new value to be associated with the key.
+<pre><code> ctx-atom - Holds the context map.
+ key      - The key into the context map.
+ value    - The new value to be associated with the key.
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn- context-assoc!
-  ([key value] (context-assoc! *context-atom* key value))
   ([ctx-atom key value] (swap! ctx-atom (fn [m] (assoc m key value)))))</pre></td></tr><tr><td class="docs"><h1>complete?</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns true once a response or an exception has been sent.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- complete?
-  ([] @(context-get :complete-atom))
-  ([ctx-atom] @(context-get ctx-atom :complete-atom)))</pre></td></tr><tr><td class="docs"><h1>ensure-response?</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns true if a response must be ensured.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- ensure-response?
-  []
-  (context-get :ensure-response))</pre></td></tr><tr><td class="docs"><h1>outstanding-requests?</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns true if there are pending requests.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- outstanding-requests?
-  []
-  (&lt; 0 (context-get :outstanding-requests)))</pre></td></tr><tr><td class="docs"><h1>set-agent-value</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Change the value of the agent:</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns true iff a response or an exception has been returned:</p>
 
-<pre><code> agent-value - The new agent value.
+<pre><code> ctx-atom - Holds the context map.
 </code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- complete?
+  ([ctx-atom] @(context-get ctx-atom :complete-atom)))</pre></td></tr><tr><td class="docs"><h1>ensure-response?</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns true if a response must be ensured:</p>
 
-<p>The set-agent-value function can only be used within the scope of a context map.</p>
+<pre><code> ctx-atom - Holds the context map.
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- ensure-response?
+  ([ctx-atom] (context-get ctx-atom :ensure-response)))</pre></td></tr><tr><td class="docs"><h1>outstanding-requests?</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Returns true if there are pending requests:</p>
+
+<pre><code> ctx-atom - Holds the context map.
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- outstanding-requests?
+  ([ctx-atom] (&lt; 0 (context-get ctx-atom :outstanding-requests))))</pre></td></tr><tr><td class="docs"><h1>set-agent-value</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Change the subsequent value of the agent:</p>
+
+<pre><code> ctx-atom - Holds the context map.
+ agent-value - The new agent value.
+</code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn set-agent-value
-  [agent-value]
-  (context-assoc! :agent-value agent-value))</pre></td></tr><tr><td class="docs"><h1>set-max-requests</h1>
+  ([ctx-atom agent-value] (context-assoc! ctx-atom :agent-value agent-value)))</pre></td></tr><tr><td class="docs"><h1>set-max-requests</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Set the maximum number of requests that can be sent:</p>
 
-<pre><code> max-requests - The limit before an exception is thrown.
+<pre><code> ctx-atom - Holds the context map.
+ max-requests - The limit before an exception is thrown.
 </code></pre>
-
-<p>The set-max-response function can only be used within the scope of a context map.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn set-max-requests
-  [max-requests]
-  (context-assoc! :max-requests max-requests))</pre></td></tr><tr><td class="docs"><h1>reduce-request-depth</h1>
+  ([ctx-atom max-requests] (context-assoc! ctx-atom :max-requests max-requests)))</pre></td></tr><tr><td class="docs"><h1>reduce-request-depth</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Set request-depth to a smaller value:</p>
 
-<p>  new-request-depth - The smaller value.</p>
+<pre><code> ctx-atom - Holds the context map.
+ new-request-depth - The smaller value.
+</code></pre>
 
 <p>Default value is Integer/MAX_VALUE.</p>
-
-<p>The reduce-request-depth function can only be used within the scope of a context map.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn reduce-request-depth
-  [new-request-depth]
-  (let [request-depth (context-get :request-depth)]
-    (if (&lt; new-request-depth request-depth)
-      (context-assoc! :request-depth new-request-depth))))</pre></td></tr><tr><td class="docs"><h1>set-exception-handler</h1>
+  ([ctx-atom new-request-depth] (let [request-depth (context-get ctx-atom :request-depth)]
+                                  (if (&lt; new-request-depth request-depth)
+                                    (context-assoc! ctx-atom :request-depth new-request-depth)))))</pre></td></tr><tr><td class="docs"><h1>set-exception-handler</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Assign an exception handler to the context map of the agent:</p>
 
-<pre><code> exception-handler - The new exception handler function.
+<pre><code> ctx-atom - Holds the context map.
+ exception-handler - The new exception handler function.
 </code></pre>
 
-<p>  The exception handler function takes two arguments:</p>
+<p>  The exception handler function takes one argument:</p>
 
-<pre><code> agent-value - The value of the agent.
- exception   - The exception thrown.
+<pre><code> exception - The exception thrown.
 </code></pre>
-
-<p>The set-exception-handler function can only be used within the scope of a context map.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn set-exception-handler
-  [exception-handler]
-  (context-assoc! :exception-handler exception-handler))</pre></td></tr><tr><td class="docs"><h1>context-inc</h1>
+  ([ctx-atom exception-handler] (context-assoc! ctx-atom :exception-handler exception-handler)))</pre></td></tr><tr><td class="docs"><h1>context-inc</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Add to the selected value in the context map:</p>
 
-<pre><code> key       - Selects the value.
+<pre><code> ctx-atom - Holds the context map.
+ key       - Selects the value.
  increment - The amount to add.
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn- context-inc
-  [key increment]
-  (context-assoc! key
-                  (+ increment (context-get key))))</pre></td></tr><tr><td class="docs"><h1>get-context-atom</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Clears the ensure-response flag and
-  returns the implicit <em>conext-atom</em> for use in cross-context replies.</p>
+  ([ctx-atom key increment] (context-assoc! ctx-atom key
+                                            (+ increment (context-get ctx-atom key)))))</pre></td></tr><tr><td class="docs"><h1>clear-ensure-response</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Clears the ensure-response flag:</p>
 
-<p>  The get-context-atom function can only be used within the scope of a context map.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn get-context-atom
-  []
-  (context-assoc! :ensure-response nil)
-  *context-atom*)</pre></td></tr><tr><td class="docs">
+<pre><code>   ctx-atom - Holds the context map.
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn clear-ensure-response
+  [ctx-atom] (context-assoc! ctx-atom :ensure-response nil))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(declare exception-reply)</pre></td></tr><tr><td class="docs"><h1>invoke-exception-handler</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Invokes the exception handler, if any, to handle the exception. If
   there is no exception handler, or if the exception handler itself
   throws an exception, pass the original exception to the source:</p>
 
-<pre><code> ag-value  - The value of the agent.
+<pre><code> ctx-atom  - Holds the context map.
  exception - The exception to be passed to the
              exception handler.
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn- invoke-exception-handler
-  [ag-value exception]
-  (let [exception-handler (context-get :exception-handler)]
-    (if exception-handler
-      (try
-        (exception-handler ag-value exception)
-        (catch Exception e (exception-reply exception)))
-      (exception-reply exception))))</pre></td></tr><tr><td class="docs"><h1>process-action</h1>
+  ([ctx-atom exception]
+   (let [exception-handler (context-get ctx-atom :exception-handler)]
+     (if exception-handler
+       (try
+         (exception-handler exception)
+         (catch Exception e (exception-reply ctx-atom exception)))
+       (exception-reply ctx-atom exception)))))</pre></td></tr><tr><td class="docs"><h1>process-operation</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Process an action:</p>
 
-<pre><code> agent-value    - The value of the agent.
- [ctx-atom op]  - The action to be processed,
-                  comprised of an operational
-                  context atom and an operation.
+<pre><code> ctx-atom - Holds the context map.
+ f        - The function to be evaluated.
+ args     - Arguments to the function.
 </code></pre>
 
 <p>Any exceptions thrown while processing the action are either passed to
@@ -3046,31 +3029,30 @@ there is one. Unhandled exceptions then are given to the source agent
 which received a signal.</p>
 
 <p>Returns a new agent value.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- process-action
-  [agent-value [ctx-atom op]]
-  (if (nil? (context-get :max-requests))
-    (context-assoc! :max-requests Long/MAX_VALUE))
-  (context-assoc! :agent-value agent-value)
-  (try
-    (apply (first op) agent-value (rest op))
-    (let [good (or (not (ensure-response?))
-                   (complete?)
-                   (outstanding-requests?))]
-      (if-not good (throw (Exception. &quot;Missing response&quot;))))
-    (catch Exception e
-      (invoke-exception-handler agent-value e)))
-  (context-get :agent-value))</pre></td></tr><tr><td class="docs"><h1>process-request</h1>
+</td><td class="codes"><pre class="brush: clojure">(defn- process-operation
+  ([ctx-atom f args]
+   (if (nil? (context-get ctx-atom :max-requests))
+     (context-assoc! ctx-atom :max-requests Long/MAX_VALUE))
+   (try
+     (apply f args)
+     (let [good (or (not (ensure-response? ctx-atom))
+                    (complete? ctx-atom)
+                    (outstanding-requests? ctx-atom))]
+       (if-not good (throw (Exception. &quot;Missing response&quot;))))
+     (catch Exception e
+       (invoke-exception-handler ctx-atom e)))
+   (context-get ctx-atom :agent-value)))</pre></td></tr><tr><td class="docs"><h1>process-request</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Process an action sent by a request or request-promise.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- process-request
-  [agent-value [ctx-atom op]]
-  (binding [*context-atom* ctx-atom]
-    (process-action agent-value [ctx-atom op])))</pre></td></tr><tr><td class="docs"><h1>process-response</h1>
+  ([agent-value [ctx-atom op]]
+   (context-assoc! ctx-atom :agent-value agent-value)
+   (process-operation ctx-atom (first op) (cons agent-value (cons ctx-atom (rest op))))))</pre></td></tr><tr><td class="docs"><h1>process-response</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Process a response sent by a reply or reply-exception.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- process-response
   [agent-value [ctx-atom op]]
-  (binding [*context-atom* ctx-atom]
-    (context-inc :outstanding-requests -1)
-    (process-action agent-value [ctx-atom op])))</pre></td></tr><tr><td class="docs"><h1>signal</h1>
+  (context-assoc! ctx-atom :agent-value agent-value)
+  (context-inc ctx-atom :outstanding-requests -1)
+  (process-operation ctx-atom (first op) (rest op)))</pre></td></tr><tr><td class="docs"><h1>signal</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>A 1-way message to operate on an agent.</p>
 
 <pre><code> ag   - The agent to be operated on.
@@ -3078,21 +3060,17 @@ which received a signal.</p>
  args - Optional arguments to f.
 </code></pre>
 
-<p>The f function takes the target agent's value as its first argument and
-args as the remaining arguments. Its return value is ignored. This
-function should use the set-agent-value function to update the state of
-the agent.</p>
-
-<p>Signals are passed to the target agent
-via the send function.</p>
-
-<p>The signal function can be used anywhere.</p>
+<p>The f function takes the target agent's value as its first argument,
+an atom holding the context map as the second argument and
+args as the remaining arguments. Its return value is ignored.
+Use the set-agent-value function to update the value of the agent.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn signal
-  [ag f &amp; args]
-  (send ag process-request [(create-context-atom ag {:requests-counter 0
-                                                     :request-depth    Integer/MAX_VALUE
-                                                     :complete-atom    (atom nil)})
-                            (cons f args)]))</pre></td></tr><tr><td class="docs"><h1>request</h1>
+  ([ag f &amp; args]
+   (send ag process-request [(create-context-atom nil
+                                                  ag {:requests-counter 0
+                                                      :request-depth    Integer/MAX_VALUE
+                                                      :complete-atom    (atom nil)})
+                             (cons f args)])))</pre></td></tr><tr><td class="docs"><h1>request</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>A 2-way message exchange to operate on an agent and get a reply
   without blocking:</p>
 
@@ -3103,50 +3081,47 @@ via the send function.</p>
          response.
 </code></pre>
 
-<p>The f function takes the target agent's value as its first argument and
-args as the remaining arguments. Its return value is ignored. This
-function should use the set-agent-value function to update the state of
+<p>The f function takes the target agent's value as its first argument,
+an atom holding the context map as its second argument and
+args as the remaining arguments. Its return value is ignored.
+Use the set-agent-value function to update the state of
 the agent. A response is returned by calling the reply function.</p>
 
-<p>The fr function takes two arguments, the value of the local agent and
+<p>The fr function takes one argument,
 the response returned by the reply function. This function is called
 within the threading context of the agent which invoked the request. But
-processing is asynchronous--there is no thread blocking. Rather, the
+processing is asynchronous and there is no thread blocking. Rather, the
 processing of requests and responses are interleaved. Isolation then
 is an issue that must be managed by the application.</p>
-
-<p>The request function can only be used within the scope of a context map.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn request
-  [ag f args fr]
-  (if (complete?) (throw (Exception. &quot;already closed.&quot;)))
-  (context-inc :outstanding-requests 1)
-  (context-inc :requests-counter 1)
-  (when (&gt; (context-get :requests-counter) (context-get :max-requests))
-    (throw (Exception. &quot;Exceeded max requests&quot;)))
-  (let [request-depth (context-get :request-depth)]
-    (when (= 0 request-depth)
-      (throw (Exception. &quot;Exceeded request depth&quot;)))
-    (send ag process-request [(create-context-atom ag {:reply            fr
-                                                       :ensure-response  true
-                                                       :requests-counter 0
-                                                       :request-depth    (- request-depth 1)
-                                                       :complete-atom    (atom nil)})
-                              (cons f args)])))</pre></td></tr><tr><td class="docs"><h1>reply</h1>
+  ([ctx-atom ag f args fr]
+   (if (complete? ctx-atom) (throw (Exception. &quot;already closed.&quot;)))
+   (context-inc ctx-atom :outstanding-requests 1)
+   (context-inc ctx-atom :requests-counter 1)
+   (when (&gt; (context-get ctx-atom :requests-counter) (context-get ctx-atom :max-requests))
+     (throw (Exception. &quot;Exceeded max requests&quot;)))
+   (let [request-depth (context-get ctx-atom :request-depth)]
+     (when (= 0 request-depth)
+       (throw (Exception. &quot;Exceeded request depth&quot;)))
+     (send ag process-request [(create-context-atom ctx-atom
+                                                    ag {:reply            fr
+                                                        :ensure-response  true
+                                                        :requests-counter 0
+                                                        :request-depth    (- request-depth 1)
+                                                        :complete-atom    (atom nil)})
+                               (cons f args)]))))</pre></td></tr><tr><td class="docs"><h1>reply</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Reply to a request:</p>
 
-<pre><code> ctx-atom - Defaults to *context-atom*.
+<pre><code> ctx-atom - Holds the context map.
  v        - The response.
 </code></pre>
 
 <p>No response is sent if the operating context is for a signal rather
 than for a request or request-promise.</p>
 
-<p>Once reply is called, requests can not be sent, nor will
-responses be processed.</p>
-
-<p>The reply function can only be used within the scope of a context map.</p>
+<p>Once reply or exception-reply is called, requests can not be sent, nor will
+further responses be processed.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn reply
-  ([v] (reply *context-atom* v))
   ([ctx-atom v]
    (let [complete-atom (context-get ctx-atom :complete-atom)]
      (if (compare-and-set! complete-atom nil true)
@@ -3159,39 +3134,35 @@ responses be processed.</p>
            prom (deliver prom v)))))))</pre></td></tr><tr><td class="docs"><h1>exception-processor</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Processes an exception response by simply rethrowing the exception:</p>
 
-<pre><code> agent-value - The value of the local context.
- exception   - The exception thrown while
+<pre><code> exception   - The exception thrown while
                processing a request.
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn- exception-processor
-  [agent-value exception]
+  [exception]
   (throw exception))</pre></td></tr><tr><td class="docs"><h1>exception-reply</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Pass an exception to the source which invoked the request, if any:</p>
 
-<pre><code> ctx-atom - Defaults to *context-atom*.
+<pre><code> ctx-atom  - Holds the context map.
  exception - The exception.
 </code></pre>
 
-<p>Once reply is called, requests can not be sent, nor will
-responses be processed.</p>
+<p>Once reply or exception-reply is called, requests can not be sent, nor will
+further responses be processed.</p>
 
 <p>No response is sent if the current operating context is for a signal
 rather than for a request. Rather, the exception is simply thrown.</p>
-
-<p>The exception-reply function can only be used within the scope of a context map.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn exception-reply
-  ([exception] (exception-reply *context-atom* exception))
   ([ctx-atom exception]
    (let [complete-atom (context-get ctx-atom :complete-atom)]
      (if (compare-and-set! complete-atom nil true)
-     (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
-           prom (context-get ctx-atom :promise)]
-       (cond
-         src-ctx-atom (let [src-agent (:agent @src-ctx-atom)]
-                        (send src-agent process-response
-                              [src-ctx-atom (list exception-processor exception)]))
-         prom (deliver prom exception)
-         :else (throw exception)))))))</pre></td></tr><tr><td class="docs"><h1>request-promise</h1>
+       (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
+             prom (context-get ctx-atom :promise)]
+         (cond
+           src-ctx-atom (let [src-agent (:agent @src-ctx-atom)]
+                          (send src-agent process-response
+                                [src-ctx-atom (list exception-processor exception)]))
+           prom (deliver prom exception)
+           :else (throw exception)))))))</pre></td></tr><tr><td class="docs"><h1>request-promise</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Sends a function to an agent and returns a promise for the result:</p>
 
 <pre><code> ag   - The target agent.
@@ -3199,16 +3170,13 @@ rather than for a request. Rather, the exception is simply thrown.</p>
  args - Arguments passed to the function.
 </code></pre>
 
-<p>The function f is invoked with the target agent's value
-pre-pended to its list of args.</p>
-
-<p>The request-promise function can not be used within the scope of a context map.</p>
+<p>The function f is invoked with the target agent's value and an
+atom holding the context map pre-pended to its list of args.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn request-promise
   [ag f &amp; args]
-  (if *context-atom*
-    (throw (Exception. &quot;Illegal use of request-promise within the scope of a context map.&quot;)))
   (let [prom (promise)]
-    (send ag process-request [(create-context-atom ag {:requests-counter 0
+    (send ag process-request [(create-context-atom nil
+                                                   ag {:requests-counter 0
                                                        :request-depth    Integer/MAX_VALUE
                                                        :ensure-response  true
                                                        :promise          prom
