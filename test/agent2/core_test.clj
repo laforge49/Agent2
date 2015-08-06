@@ -162,8 +162,10 @@
   (is (= q7 "got exception")))
 
 (def a98 (agent 98))
-(def r98 (.getMessage @(request-promise a98 (fn [_] (set-exception-handler
-                                                   (fn [e]
-                                                     (reply e)))))))
+(def r98 (.getMessage @(request-promise a98
+                                        (fn [_]
+                                          (set-exception-handler
+                                            (fn [e]
+                                              (reply e)))))))
 (deftest missing-response
   (is (= r98 "Missing response")))
