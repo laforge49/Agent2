@@ -2,13 +2,13 @@
   (:require [clojure.test :refer :all]
             [agent2.core :refer :all]))
 
-(defn inc-state [agent-value]
-  (set-agent-value (+ 1 agent-value))
+(defn inc-state [agent-value ctx-atom]
+  (set-agent-value ctx-atom (+ 1 agent-value))
   )
 
 (defn return-state
-  [agent-value]
-  (reply agent-value))
+  [agent-value ctx-atom]
+  (reply ctx-atom agent-value))
 
 (defn eh [a e]
   (println "got error" e)
@@ -21,11 +21,11 @@
   (is (= 23 r22)))
 
 (def a33 (agent 33))
-(defn ignore-result [_])
-(defn check33 [_]
-  (request a33 return-state () ignore-result)
-  (request a33 return-state () ignore-result)
-  (request a33 return-state () ignore-result)
+(defn ignore-result [result])
+(defn check33 [agent-value ctx-atom]
+  (request ctx-atom a33 return-state () ignore-result)
+  (request ctx-atom a33 return-state () ignore-result)
+  (request ctx-atom a33 return-state () ignore-result)
   )
 (def a34 (agent 34))
 (def r34 (.getMessage @(request-promise a34 check33)))
@@ -33,12 +33,12 @@
   (is (= r34 "Missing response")))
 
 (def a43 (agent 43))
-(defn check43 [_]
-  (set-max-requests 2)
-  (request a43 return-state () ignore-result)
-  (request a43 return-state () ignore-result)
-  (request a43 return-state () ignore-result)
-  (reply 999)
+(defn check43 [agent-value ctx-atom]
+  (set-max-requests ctx-atom 2)
+  (request ctx-atom a43 return-state () ignore-result)
+  (request ctx-atom a43 return-state () ignore-result)
+  (request ctx-atom a43 return-state () ignore-result)
+  (reply ctx-atom 999)
   )
 (def a44 (agent 44))
 (def r44 (.getMessage @(request-promise a44 check43)))
@@ -46,29 +46,32 @@
   (is (= r44 "Exceeded max requests")))
 
 (def a53 (agent 53))
-(defn check53 [_]
-  (reduce-request-depth 0)
-  (request a53 return-state () ignore-result)
-  (request a53 return-state () ignore-result)
-  (request a53 return-state () ignore-result)
-  (reply 999)
+(defn check53 [agent-value ctx-atom]
+  (reduce-request-depth ctx-atom 0)
+  (request ctx-atom a53 return-state () ignore-result)
+  (request ctx-atom a53 return-state () ignore-result)
+  (request ctx-atom a53 return-state () ignore-result)
+  (reply ctx-atom 999)
   )
 (def a54 (agent 54))
 (def r54 (.getMessage @(request-promise a54 check53)))
 (deftest too-many-requests
   (is (= r54 "Exceeded request depth")))
 
-(defn dbz [_]
+(defn dbz-snt [agent-value]
   (/ 0 0))
 
-(defn dbzr [_]
+(defn dbz-req [agent-value ctx-atom]
+  (/ 0 0))
+
+(defn dbz-rsp [result]
   (/ 0 0))
 
 (def p1 (promise))
 (defn eh1 [a e]
   (deliver p1 true))
 (def a1 (agent true :error-handler eh1))
-(send a1 dbz)
+(send a1 dbz-snt)
 (def q1 (deref p1 200 false))
 (deftest agent-error-handler-1
   (is (= true q1)))
@@ -78,7 +81,7 @@
   (deliver p2 true)
   )
 (def a2 (agent true :error-handler eh2))
-(signal a2 dbz)
+(signal a2 dbz-req)
 (def q2 (deref p2 200 false))
 (deftest signal-error-handler-2
   (is (= true q2)))
@@ -91,9 +94,10 @@
 (def a3 (agent true :error-handler eh3))
 (def b3 (agent "Fred" :error-handler eh3b))
 (signal a3
-        (fn [agent-value]
-          (request b3
-                   dbz ()
+        (fn [agent-value ctx-atom]
+          (request ctx-atom
+                   b3
+                   dbz-req ()
                    '(println 99))))
 (def q3 (deref p3 200 "timeout"))
 (deftest request-error-handler-3
@@ -105,10 +109,11 @@
 (def a4 (agent true :error-handler eh4))
 (def b4 (agent "Fred"))
 (signal a4
-        (fn [agent-value]
-          (request b4
-                   (fn [_] (reply 42)) ()
-                   dbzr)))
+        (fn [agent-value ctx-atom]
+          (request ctx-atom
+                   b4
+                   (fn [agent-value ctx-atom] (reply 42)) ()
+                   dbz-rsp)))
 (def q4 (deref p4 200 nil))
 (deftest reply-error-handler-4
   (is (= q4 "got error")))
@@ -116,11 +121,11 @@
 (defn eh5 [a e]
   (.printStackTrace e))
 (def p5 (promise))
-(defn exh5 [_]
+(defn exh5 [e]
   (deliver p5 "got exception"))
 (def a5 (agent "Sam" :error-handler eh5))
-(signal a5 (fn [_]
-             (set-exception-handler exh5)
+(signal a5 (fn [agent-value ctx-atom]
+             (set-exception-handler ctx-atom exh5)
              (/ 0 0)))
 (def q5 (deref p5 1200 "timeout"))
 (deftest signal-exception-handler-5
@@ -130,15 +135,16 @@
 (defn eh6 [a e]
   (.printStackTrace e)
   (deliver p6 "got error"))
-(defn exh6 [_]
+(defn exh6 [e]
   (deliver p6 "got exception"))
 (def a6 (agent true :error-handler eh6))
 (def b6 (agent "Fred"))
 (signal a6
-        (fn [agent-value]
-          (set-exception-handler exh6)
-          (request b6
-                   dbz ()
+        (fn [agent-value ctx-atom]
+          (set-exception-handler ctx-atom exh6)
+          (request ctx-atom
+                   b6
+                   dbz-snt ()
                    '(println 99))))
 (def q6 (deref p6 200 "timeout"))
 (deftest request-error-handler-6
@@ -147,25 +153,27 @@
 (def p7 (promise))
 (defn eh7 [a e]
   (deliver p7 "got error"))
-(defn exh7 [_]
+(defn exh7 [e]
   (deliver p7 "got exception"))
 (def a7 (agent true :error-handler eh7))
 (def b7 (agent "Fred"))
 (signal a7
-        (fn [agent-value]
-          (set-exception-handler exh7)
-          (request b7
-                   (fn [_] (reply 42)) ()
-                   dbzr)))
+        (fn [agent-value ctx-atom]
+          (set-exception-handler ctx-atom exh7)
+          (request ctx-atom
+                   b7
+                   (fn [agent-value ctx-atom] (reply ctx-atom 42)) ()
+                   dbz-rsp)))
 (def q7 (deref p7 200 nil))
 (deftest reply-error-handler-7
   (is (= q7 "got exception")))
 
 (def a98 (agent 98))
 (def r98 (.getMessage @(request-promise a98
-                                        (fn [_]
+                                        (fn [agent-value ctx-atom]
                                           (set-exception-handler
+                                            ctx-atom
                                             (fn [e]
-                                              (reply e)))))))
+                                              (reply ctx-atom e)))))))
 (deftest missing-response
   (is (= r98 "Missing response")))

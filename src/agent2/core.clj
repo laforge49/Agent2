@@ -249,7 +249,7 @@ Returns a new agent value."
   ([agent-value [ctx-atom op]]
   (binding [*context-atom* ctx-atom]
     (context-assoc! ctx-atom :agent-value agent-value)
-    (process-operation ctx-atom (first op) (cons agent-value (rest op)))
+    (process-operation ctx-atom (first op) (cons agent-value (cons ctx-atom (rest op))))
     )))
 
 ;;# process-response
