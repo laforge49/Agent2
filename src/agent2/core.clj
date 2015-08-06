@@ -1,11 +1,5 @@
 (ns agent2.core)
 
-;;# *context-atom*
-
-(def ^{:dynamic true, :private true} *context-atom*
-  "Holds the context of an operation performed on an agent."
-  nil)
-
 ;;# create-context-atom
 
 (defn- create-context-atom
@@ -112,7 +106,6 @@ Returns the new context atom."
 
 The set-agent-value function can only be used within the scope of a context map."
 
-  ([agent-value] (set-agent-value *context-atom* agent-value))
   ([ctx-atom agent-value] (context-assoc! ctx-atom :agent-value agent-value)))
 
 ;;# set-max-requests
@@ -126,7 +119,6 @@ The set-agent-value function can only be used within the scope of a context map.
 
 The set-max-response function can only be used within the scope of a context map."
 
-  ([max-requests] (set-max-requests *context-atom* max-requests))
   ([ctx-atom max-requests] (context-assoc! ctx-atom :max-requests max-requests)))
 
 ;;# reduce-request-depth
@@ -142,7 +134,6 @@ Default value is Integer/MAX_VALUE.
 
 The reduce-request-depth function can only be used within the scope of a context map."
 
-  ([new-request-depth] (reduce-request-depth *context-atom* new-request-depth))
   ([ctx-atom new-request-depth] (let [request-depth (context-get ctx-atom :request-depth)]
                                   (if (< new-request-depth request-depth)
                                     (context-assoc! ctx-atom :request-depth new-request-depth)))))
@@ -162,7 +153,6 @@ The reduce-request-depth function can only be used within the scope of a context
 
 The set-exception-handler function can only be used within the scope of a context map."
 
-  ([exception-handler] (set-exception-handler *context-atom* exception-handler))
   ([ctx-atom exception-handler] (context-assoc! ctx-atom :exception-handler exception-handler)))
 
 ;;# context-inc
@@ -175,7 +165,7 @@ The set-exception-handler function can only be used within the scope of a contex
      increment - The amount to add."
 
   ([ctx-atom key increment] (context-assoc! ctx-atom key
-                                   (+ increment (context-get ctx-atom key)))))
+                                            (+ increment (context-get ctx-atom key)))))
 
 ;;# clear-ensure-response
 
@@ -203,12 +193,12 @@ The set-exception-handler function can only be used within the scope of a contex
                  exception handler."
 
   ([ctx-atom exception]
-  (let [exception-handler (context-get ctx-atom :exception-handler)]
-    (if exception-handler
-      (try
-        (exception-handler exception)
-        (catch Exception e (exception-reply ctx-atom exception)))
-      (exception-reply ctx-atom exception)))))
+   (let [exception-handler (context-get ctx-atom :exception-handler)]
+     (if exception-handler
+       (try
+         (exception-handler exception)
+         (catch Exception e (exception-reply ctx-atom exception)))
+       (exception-reply ctx-atom exception)))))
 
 ;;# process-operation
 
@@ -227,18 +217,18 @@ which received a signal.
 Returns a new agent value."
 
   ([ctx-atom f args]
-  (if (nil? (context-get ctx-atom :max-requests))
-    (context-assoc! ctx-atom :max-requests Long/MAX_VALUE))
-  (try
-    (apply f args)
-    (let [good (or (not (ensure-response? ctx-atom))
-                   (complete? ctx-atom)
-                   (outstanding-requests? ctx-atom))]
-      (if-not good (throw (Exception. "Missing response"))))
-    (catch Exception e
-      (invoke-exception-handler ctx-atom e)))
-  (context-get ctx-atom :agent-value)
-  ))
+   (if (nil? (context-get ctx-atom :max-requests))
+     (context-assoc! ctx-atom :max-requests Long/MAX_VALUE))
+   (try
+     (apply f args)
+     (let [good (or (not (ensure-response? ctx-atom))
+                    (complete? ctx-atom)
+                    (outstanding-requests? ctx-atom))]
+       (if-not good (throw (Exception. "Missing response"))))
+     (catch Exception e
+       (invoke-exception-handler ctx-atom e)))
+   (context-get ctx-atom :agent-value)
+    ))
 
 ;;# process-request
 
@@ -247,21 +237,19 @@ Returns a new agent value."
   "Process an action sent by a request or request-promise."
 
   ([agent-value [ctx-atom op]]
-  (binding [*context-atom* ctx-atom]
-    (context-assoc! ctx-atom :agent-value agent-value)
-    (process-operation ctx-atom (first op) (cons agent-value (cons ctx-atom (rest op))))
-    )))
+   (context-assoc! ctx-atom :agent-value agent-value)
+   (process-operation ctx-atom (first op) (cons agent-value (cons ctx-atom (rest op))))
+    ))
 
 ;;# process-response
 
 (defn- process-response
   "Process a response sent by a reply or reply-exception."
   [agent-value [ctx-atom op]]
-  (binding [*context-atom* ctx-atom]
-    (context-assoc! ctx-atom :agent-value agent-value)
-    (context-inc ctx-atom :outstanding-requests -1)
-    (process-operation ctx-atom (first op) (rest op))
-    ))
+  (context-assoc! ctx-atom :agent-value agent-value)
+  (context-inc ctx-atom :outstanding-requests -1)
+  (process-operation ctx-atom (first op) (rest op))
+  )
 
 ;;# signal
 
@@ -283,11 +271,11 @@ via the send function.
 The signal function can be used anywhere."
 
   ([ag f & args]
-  (send ag process-request [(create-context-atom *context-atom*
-                                                 ag {:requests-counter 0
-                                                     :request-depth    Integer/MAX_VALUE
-                                                     :complete-atom    (atom nil)})
-                            (cons f args)])))
+   (send ag process-request [(create-context-atom nil
+                                                  ag {:requests-counter 0
+                                                      :request-depth    Integer/MAX_VALUE
+                                                      :complete-atom    (atom nil)})
+                             (cons f args)])))
 
 ;;# request
 
@@ -315,31 +303,30 @@ is an issue that must be managed by the application.
 
 The request function can only be used within the scope of a context map."
 
-  ([ag f args fr] (request *context-atom* ag f args fr))
   ([ctx-atom ag f args fr]
-  (if (complete? ctx-atom) (throw (Exception. "already closed.")))
-  (context-inc ctx-atom :outstanding-requests 1)
-  (context-inc ctx-atom :requests-counter 1)
-  (when (> (context-get ctx-atom :requests-counter) (context-get ctx-atom :max-requests))
-    (throw (Exception. "Exceeded max requests")))
-  (let [request-depth (context-get ctx-atom :request-depth)]
-    (when (= 0 request-depth)
-      (throw (Exception. "Exceeded request depth"))
-      )
-    (send ag process-request [(create-context-atom ctx-atom
-                                                   ag {:reply            fr
-                                                       :ensure-response  true
-                                                       :requests-counter 0
-                                                       :request-depth    (- request-depth 1)
-                                                       :complete-atom    (atom nil)})
-                              (cons f args)]))))
+   (if (complete? ctx-atom) (throw (Exception. "already closed.")))
+   (context-inc ctx-atom :outstanding-requests 1)
+   (context-inc ctx-atom :requests-counter 1)
+   (when (> (context-get ctx-atom :requests-counter) (context-get ctx-atom :max-requests))
+     (throw (Exception. "Exceeded max requests")))
+   (let [request-depth (context-get ctx-atom :request-depth)]
+     (when (= 0 request-depth)
+       (throw (Exception. "Exceeded request depth"))
+       )
+     (send ag process-request [(create-context-atom ctx-atom
+                                                    ag {:reply            fr
+                                                        :ensure-response  true
+                                                        :requests-counter 0
+                                                        :request-depth    (- request-depth 1)
+                                                        :complete-atom    (atom nil)})
+                               (cons f args)]))))
 
 ;;# reply
 
 (defn reply
   "Reply to a request:
 
-     ctx-atom - Defaults to *context-atom*.
+     ctx-atom - Holds the context map.
      v        - The response.
 
 No response is sent if the operating context is for a signal rather
@@ -350,7 +337,6 @@ responses be processed.
 
 The reply function can only be used within the scope of a context map."
 
-  ([v] (reply *context-atom* v))
   ([ctx-atom v]
    (let [complete-atom (context-get ctx-atom :complete-atom)]
      (if (compare-and-set! complete-atom nil true)
@@ -392,14 +378,14 @@ The exception-reply function can only be used within the scope of a context map.
   ([ctx-atom exception]
    (let [complete-atom (context-get ctx-atom :complete-atom)]
      (if (compare-and-set! complete-atom nil true)
-     (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
-           prom (context-get ctx-atom :promise)]
-       (cond
-         src-ctx-atom (let [src-agent (:agent @src-ctx-atom)]
-                        (send src-agent process-response
-                              [src-ctx-atom (list exception-processor exception)]))
-         prom (deliver prom exception)
-         :else (throw exception)))))))
+       (let [src-ctx-atom (context-get ctx-atom :src-ctx-atom)
+             prom (context-get ctx-atom :promise)]
+         (cond
+           src-ctx-atom (let [src-agent (:agent @src-ctx-atom)]
+                          (send src-agent process-response
+                                [src-ctx-atom (list exception-processor exception)]))
+           prom (deliver prom exception)
+           :else (throw exception)))))))
 
 ;;# request-promise
 
