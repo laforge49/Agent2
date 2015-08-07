@@ -177,3 +177,15 @@
                                               (reply ctx-atom e)))))))
 (deftest missing-response
   (is (= r98 "Missing response")))
+
+(defn waitforit [agent-value ctx-atom]
+  (clear-ensure-response ctx-atom)
+  (set-agent-value ctx-atom ctx-atom))
+(def coordinate (agent nil))
+(def p (request-promise coordinate waitforit))
+(defn hereitcomes [agent-value ctx-atom arg-value]
+  (reply agent-value arg-value))
+(signal coordinate hereitcomes 64000)
+(def wegotit @p)
+(deftest coordination
+  (is (= wegotit 64000)))
