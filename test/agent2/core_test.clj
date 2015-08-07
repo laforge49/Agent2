@@ -3,7 +3,7 @@
             [agent2.core :refer :all]))
 
 (defn inc-state [agent-value ctx-atom]
-  (set-agent-value ctx-atom (+ 1 agent-value))
+  (set-agent-value! ctx-atom (+ 1 agent-value))
   )
 
 (defn return-state
@@ -34,7 +34,7 @@
 
 (def a43 (agent 43))
 (defn check43 [agent-value ctx-atom]
-  (set-max-requests ctx-atom 2)
+  (set-max-requests! ctx-atom 2)
   (request ctx-atom a43 return-state () ignore-result)
   (request ctx-atom a43 return-state () ignore-result)
   (request ctx-atom a43 return-state () ignore-result)
@@ -47,7 +47,7 @@
 
 (def a53 (agent 53))
 (defn check53 [agent-value ctx-atom]
-  (reduce-request-depth ctx-atom 0)
+  (reduce-request-depth! ctx-atom 0)
   (request ctx-atom a53 return-state () ignore-result)
   (request ctx-atom a53 return-state () ignore-result)
   (request ctx-atom a53 return-state () ignore-result)
@@ -125,7 +125,7 @@
   (deliver p5 "got exception"))
 (def a5 (agent "Sam" :error-handler eh5))
 (signal a5 (fn [agent-value ctx-atom]
-             (set-exception-handler ctx-atom exh5)
+             (set-exception-handler! ctx-atom exh5)
              (/ 0 0)))
 (def q5 (deref p5 1200 "timeout"))
 (deftest signal-exception-handler-5
@@ -141,7 +141,7 @@
 (def b6 (agent "Fred"))
 (signal a6
         (fn [agent-value ctx-atom]
-          (set-exception-handler ctx-atom exh6)
+          (set-exception-handler! ctx-atom exh6)
           (request ctx-atom
                    b6
                    dbz-snt ()
@@ -159,7 +159,7 @@
 (def b7 (agent "Fred"))
 (signal a7
         (fn [agent-value ctx-atom]
-          (set-exception-handler ctx-atom exh7)
+          (set-exception-handler! ctx-atom exh7)
           (request ctx-atom
                    b7
                    (fn [agent-value ctx-atom] (reply ctx-atom 42)) ()
@@ -171,7 +171,7 @@
 (def a98 (agent 98))
 (def r98 (.getMessage @(request-promise a98
                                         (fn [agent-value ctx-atom]
-                                          (set-exception-handler
+                                          (set-exception-handler!
                                             ctx-atom
                                             (fn [e]
                                               (reply ctx-atom e)))))))
@@ -179,8 +179,8 @@
   (is (= r98 "Missing response")))
 
 (defn waitforit [agent-value ctx-atom]
-  (clear-ensure-response ctx-atom)
-  (set-agent-value ctx-atom ctx-atom))
+  (clear-ensure-response! ctx-atom)
+  (set-agent-value! ctx-atom ctx-atom))
 (def coordinate (agent nil))
 (def p (request-promise coordinate waitforit))
 (defn hereitcomes [agent-value ctx-atom arg-value]

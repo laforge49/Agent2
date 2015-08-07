@@ -97,7 +97,7 @@ Returns the new context atom."
 
 ;;# set-agent-value
 
-(defn set-agent-value
+(defn set-agent-value!
 
   "Change the subsequent value of the agent:
 
@@ -108,7 +108,7 @@ Returns the new context atom."
 
 ;;# set-max-requests
 
-(defn set-max-requests
+(defn set-max-requests!
 
   "Set the maximum number of requests that can be sent:
 
@@ -119,7 +119,7 @@ Returns the new context atom."
 
 ;;# reduce-request-depth
 
-(defn reduce-request-depth
+(defn reduce-request-depth!
 
   "Set request-depth to a smaller value:
 
@@ -134,7 +134,7 @@ Default value is Integer/MAX_VALUE."
 
 ;;# set-exception-handler
 
-(defn set-exception-handler
+(defn set-exception-handler!
 
   "Assign an exception handler to the context map of the agent:
 
@@ -149,7 +149,7 @@ Default value is Integer/MAX_VALUE."
 
 ;;# context-inc
 
-(defn- context-inc
+(defn- context-inc!
   "Add to the selected value in the context map:
 
      ctx-atom - Holds the context map.
@@ -161,7 +161,7 @@ Default value is Integer/MAX_VALUE."
 
 ;;# clear-ensure-response
 
-(defn clear-ensure-response
+(defn clear-ensure-response!
 
   "Clears the ensure-response flag:
 
@@ -237,7 +237,7 @@ Returns a new agent value."
   "Process a response sent by a reply or reply-exception."
   [agent-value [ctx-atom op]]
   (context-assoc! ctx-atom :agent-value agent-value)
-  (context-inc ctx-atom :outstanding-requests -1)
+  (context-inc! ctx-atom :outstanding-requests -1)
   (process-operation ctx-atom (first op) (rest op))
   )
 
@@ -289,8 +289,8 @@ is an issue that must be managed by the application."
 
   ([ctx-atom ag f args fr]
    (if (complete? ctx-atom) (throw (Exception. "already closed.")))
-   (context-inc ctx-atom :outstanding-requests 1)
-   (context-inc ctx-atom :requests-counter 1)
+   (context-inc! ctx-atom :outstanding-requests 1)
+   (context-inc! ctx-atom :requests-counter 1)
    (when (> (context-get ctx-atom :requests-counter) (context-get ctx-atom :max-requests))
      (throw (Exception. "Exceeded max requests")))
    (let [request-depth (context-get ctx-atom :request-depth)]

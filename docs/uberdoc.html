@@ -2952,14 +2952,14 @@ net.brehaut.ClojureTools = (function (SH) {
 <pre><code> ctx-atom - Holds the context map.
  agent-value - The new agent value.
 </code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn set-agent-value
+</td><td class="codes"><pre class="brush: clojure">(defn set-agent-value!
   ([ctx-atom agent-value] (context-assoc! ctx-atom :agent-value agent-value)))</pre></td></tr><tr><td class="docs"><h1>set-max-requests</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Set the maximum number of requests that can be sent:</p>
 
 <pre><code> ctx-atom - Holds the context map.
  max-requests - The limit before an exception is thrown.
 </code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn set-max-requests
+</td><td class="codes"><pre class="brush: clojure">(defn set-max-requests!
   ([ctx-atom max-requests] (context-assoc! ctx-atom :max-requests max-requests)))</pre></td></tr><tr><td class="docs"><h1>reduce-request-depth</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Set request-depth to a smaller value:</p>
 
@@ -2968,7 +2968,7 @@ net.brehaut.ClojureTools = (function (SH) {
 </code></pre>
 
 <p>Default value is Integer/MAX_VALUE.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn reduce-request-depth
+</td><td class="codes"><pre class="brush: clojure">(defn reduce-request-depth!
   ([ctx-atom new-request-depth] (let [request-depth (context-get ctx-atom :request-depth)]
                                   (if (&lt; new-request-depth request-depth)
                                     (context-assoc! ctx-atom :request-depth new-request-depth)))))</pre></td></tr><tr><td class="docs"><h1>set-exception-handler</h1>
@@ -2982,7 +2982,7 @@ net.brehaut.ClojureTools = (function (SH) {
 
 <pre><code> exception - The exception thrown.
 </code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn set-exception-handler
+</td><td class="codes"><pre class="brush: clojure">(defn set-exception-handler!
   ([ctx-atom exception-handler] (context-assoc! ctx-atom :exception-handler exception-handler)))</pre></td></tr><tr><td class="docs"><h1>context-inc</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Add to the selected value in the context map:</p>
 
@@ -2990,14 +2990,14 @@ net.brehaut.ClojureTools = (function (SH) {
  key       - Selects the value.
  increment - The amount to add.
 </code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn- context-inc
+</td><td class="codes"><pre class="brush: clojure">(defn- context-inc!
   ([ctx-atom key increment] (context-assoc! ctx-atom key
                                             (+ increment (context-get ctx-atom key)))))</pre></td></tr><tr><td class="docs"><h1>clear-ensure-response</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Clears the ensure-response flag:</p>
 
 <pre><code>   ctx-atom - Holds the context map.
 </code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn clear-ensure-response
+</td><td class="codes"><pre class="brush: clojure">(defn clear-ensure-response!
   [ctx-atom] (context-assoc! ctx-atom :ensure-response nil))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(declare exception-reply)</pre></td></tr><tr><td class="docs"><h1>invoke-exception-handler</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Invokes the exception handler, if any, to handle the exception. If
@@ -3051,7 +3051,7 @@ which received a signal.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- process-response
   [agent-value [ctx-atom op]]
   (context-assoc! ctx-atom :agent-value agent-value)
-  (context-inc ctx-atom :outstanding-requests -1)
+  (context-inc! ctx-atom :outstanding-requests -1)
   (process-operation ctx-atom (first op) (rest op)))</pre></td></tr><tr><td class="docs"><h1>signal</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>A 1-way message to operate on an agent.</p>
 
@@ -3096,8 +3096,8 @@ is an issue that must be managed by the application.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn request
   ([ctx-atom ag f args fr]
    (if (complete? ctx-atom) (throw (Exception. &quot;already closed.&quot;)))
-   (context-inc ctx-atom :outstanding-requests 1)
-   (context-inc ctx-atom :requests-counter 1)
+   (context-inc! ctx-atom :outstanding-requests 1)
+   (context-inc! ctx-atom :requests-counter 1)
    (when (&gt; (context-get ctx-atom :requests-counter) (context-get ctx-atom :max-requests))
      (throw (Exception. &quot;Exceeded max requests&quot;)))
    (let [request-depth (context-get ctx-atom :request-depth)]
