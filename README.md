@@ -1,5 +1,5 @@
 # agent2
-2-way non-blocking messaging & weak real-time for [Clojure Agents](http://clojure.org/agents).
+2-way non-blocking messags for [Clojure Agents](http://clojure.org/agents).
 
 References in Clojure are generally to immutable values. Clojure
 supports 4 types of references which differ in the mechanisms used
@@ -12,7 +12,7 @@ to pass a function to an agent.
 Agents are modeled after Actors and the functions sent to an agent are 
 evaluated one at a time. Polymorphism is a key feature, allowing
 the same message to be processed appropriately depending on the value
-of the agent. This is easily in Clojure, by always using the value of
+of the agent. This is easily achieved in Clojure by always using the value of
 an agent as the first argument given to any function sent to that agent
 and by using a record as the value of the agent.
 
@@ -31,7 +31,10 @@ project. Callbacks were used for handling non-blocking replies, with closures
 managing a local state. But JActor2 was written in Java and everything
 is easier when using Clojure.
 
-## get-agent-value
+(Unlike actors, Clojure agents do not scale across multiple JVMs. 
+The JActor2 and agent2 projects also do not scale across multiple JVMs.)
+
+## replies
 
 We begin with a request function that replies with the value of the agent it was sent to:
 
@@ -44,44 +47,47 @@ We begin with a request function that replies with the value of the agent it was
     (deftest test-get-agent-value
       (is (= r42 42)))
 
+The first argument passed to the get-agent-value function is the value of the agent.
+But for replies to work, we introduce a context, ctx-atom, which is passed as the
+second argument.
 
+To test this we use the request-promise function, which passes get-agent-value to 
+agent42 and then returns a promise. Dereferencing that promise then gives us the
+expected value. We use the promise here to block our main thread until a response is
+received.
 
-When you send to an Agent there is no indication that the function
-sent was executed or was dropped when the agent was restarted beyond
-your own application code. This is typical of asynchronous programming,
-which gives no assurances about process completion.
+## replies without promises
 
-Asynchronous programming is hard. Timeouts are often used, but this can
-be tricky when a function is not idempotent. And when a system is under
-heavy load, timeouts often expire and tend to increase the load on
-a system.
+Blocking to receive a reply is not something you want to do from
+within an agent, as this would tie up a thread in the agent threadpool.
+So lets look at an example where one agent sends a request to another:
 
-But when 2-way messages are supported, you can develop systems with a
-guarantee that for every request there will be a response, if only
-an error response. Such systems are still fully asynchronous, but a 
-lot more fun to work with.
+    (defn get-indirect
+      [_ ctx-atom agnt]
+      (request ctx-atom agnt
+               get-agent-value ()
+               (fn [result] (reply ctx-atom result))))
 
-Remember that [Clojure agents](http://clojure.org/agents) are not intended for use directly across 
-multiple JVM's. And this simplifies things enormously.
+    (def agent99 (agent nil))
+    (def r99 @(request-promise agent99 get-indirect agent42))
+    (deftest test-get-indirect
+      (is (= r99 42)))
 
-## Status
+The get-indirect function uses request to send the get-agent-value
+to another agent and then return the result. The request function
+takes 5 arguments:
 
-This project is a rewrite of the Java project, 
-[JActor2](https://github.com/laforge49/JActor2), 
-which makes it easy to plan the implementation:
-
-  - Two way messaging is complete.
-  - Exception handling is complete.
-  - Constrained resources is complete.
-  - Single response assurance is complete.
-  - Response assurance is complete.
-
-## Architecture
-
-The Clojure agent is used without change. A dynamic var, *context-atom*,
-is used to provide a context map for the current request. These
-context maps are organized as stacks and are used for returning responses
-to a requesting agent within the context that made the request.
+  1. The current context.
+  1. The target agent.
+  1. The function to be sent.
+  1. A list of arguments for the function being sent. And
+  1. The function to be sent back with the result.
+  
+The get-indirect function does not wait for a response. Rather,
+it defines a callback which is evaluated when a response is 
+received. In addition, processing a response is just like the processing
+of any other message sent to an agent--only one message is processed at
+a time.
 
 ## Documentation
 

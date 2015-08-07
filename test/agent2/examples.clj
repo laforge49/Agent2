@@ -10,3 +10,14 @@
 (def r42 @(request-promise agent42 get-agent-value))
 (deftest test-get-agent-value
   (is (= r42 42)))
+
+(defn get-indirect
+  [_ ctx-atom agnt]
+  (request ctx-atom agnt
+           get-agent-value ()
+           (fn [result] (reply ctx-atom result))))
+
+(def agent99 (agent nil))
+(def r99 @(request-promise agent99 get-indirect agent42))
+(deftest test-get-indirect
+  (is (= r99 42)))
