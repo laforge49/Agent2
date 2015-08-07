@@ -19,7 +19,7 @@ and by using a record as the value of the agent.
 But unlike actors, agents always process messages in the order received.
 This leads to 
 "[Death by Accidental Complexity](http://www.infoq.com/presentations/Death-by-Accidental-Complexity)."
-Actors solve this by processing messages based on actor state.
+Actors solve this by selectively processing messages based on actor state.
 But this is not a solution without significant cost, as it introduces
 coupling between actors and can result in frequent datalocks as a
 project matures.
