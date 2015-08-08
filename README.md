@@ -95,4 +95,3 @@ a time.
 
   - [Uberdoc](http://www.agilewiki.org/projects/agent2/uberdoc.html)
   - [API](http://www.agilewiki.org/projects/agent2/doc/index.html)
-  
