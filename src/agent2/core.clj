@@ -377,7 +377,9 @@ rather than for a request. Rather, the exception is simply thrown."
      args - Arguments passed to the function.
 
 The function f is invoked with the target agent's value and an
-atom holding the context map pre-pended to its list of args."
+atom holding the context map pre-pended to its list of args.
+
+Should f throw an exception, it is returned as a result via the promise."
 
   [ag f & args]
   (let [prom (promise)]
@@ -389,3 +391,21 @@ atom holding the context map pre-pended to its list of args."
                                                        :complete-atom    (atom nil)})
                               (cons f args)])
     prom))
+
+(defn request-call
+  "Sends a function to an agent and blocks until a result is available:
+
+     ag   - The target agent.
+     f    - The function passed to the agent.
+     args - Arguments passed to the function.
+
+The function f is invoked with the target agent's value and an
+atom holding the context map pre-pended to its list of args.
+
+Should f throw an exception, it is passed to request-call which then
+rethrows it."
+
+  [ag f & args]
+  (let [r @(apply request-promise ag f args)]
+    (if (instance? Throwable r) (throw r))
+    r))
