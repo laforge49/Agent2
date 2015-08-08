@@ -1,4 +1,4 @@
-(defproject agent2 "0.1.0"
+(defproject agent2 "0.2.0"
   :description "A Clojure version of JActor2,
                 based on the Clojure core agent."
   :url "http://example.com/FIXME"
