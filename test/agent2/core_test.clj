@@ -17,29 +17,23 @@
   [agent-value ctx-atom]
   (reply ctx-atom agent-value))
 
-(defn eh [a e]
-  (println "got error" e)
-  (.printStackTrace e))
-
-(def a22 (agent 22 :error-handler eh))
+(def a22 (agent 22))
 (signal a22 inc-state)
-(def r22 @(request-promise a22 return-state))
-(deftest promise-request
+(def r22 (request-call a22 return-state))
+(deftest promise-call
   (is (= 23 r22)))
 
 (defn ignore-result [result])
-(comment
-  (def a33 (agent 33))
-  (defn check33 [agent-value ctx-atom]
-    (request ctx-atom a33 return-state () ignore-result)
-    (request ctx-atom a33 return-state () ignore-result)
-    (request ctx-atom a33 return-state () ignore-result)
-    )
-  (def a34 (agent 34))
-  (def r34 (.getMessage @(request-promise a34 check33)))
-  (deftest missing-response2
-    (is (= r34 "Missing response")))
+(def a33 (agent 33))
+(defn check33 [agent-value ctx-atom]
+  (request ctx-atom a33 return-state () ignore-result)
+  (request ctx-atom a33 return-state () ignore-result)
+  (request ctx-atom a33 return-state () ignore-result)
   )
+(def a34 (agent 34))
+(def r34 (.getMessage (catcher #(request-call a34 check33))))
+(deftest missing-call2
+  (is (= r34 "Missing response")))
 
 (def a43 (agent 43))
 (defn check43 [agent-value ctx-atom]
@@ -50,7 +44,7 @@
   (reply ctx-atom 999)
   )
 (def a44 (agent 44))
-(def r44 (.getMessage @(request-promise a44 check43)))
+(def r44 (.getMessage (catcher #(request-call a44 check43))))
 (deftest too-many-requests
   (is (= r44 "Exceeded max requests")))
 
@@ -63,7 +57,7 @@
   (reply ctx-atom 999)
   )
 (def a54 (agent 54))
-(def r54 (.getMessage @(request-promise a54 check53)))
+(def r54 (.getMessage (catcher #(request-call a54 check53))))
 (deftest too-many-requests
   (is (= r54 "Exceeded request depth")))
 
@@ -75,15 +69,6 @@
 
 (defn dbz-rsp [result]
   (/ 0 0))
-
-(def p1 (promise))
-(defn eh1 [a e]
-  (deliver p1 true))
-(def a1 (agent true :error-handler eh1))
-(send a1 dbz-snt)
-(def q1 (deref p1 200 false))
-(deftest agent-error-handler-1
-  (is (= true q1)))
 
 (def p2 (promise))
 (defn eh2 [a e]
@@ -177,9 +162,8 @@
 (deftest reply-error-handler-7
   (is (= q7 "got exception")))
 
-(comment
   (def a98 (agent 98))
-  (def r98 (.getMessage @(request-promise a98
+  (def r98 (.getMessage (request-call a98
                                           (fn [agent-value ctx-atom]
                                             (set-exception-handler!
                                               ctx-atom
@@ -187,7 +171,6 @@
                                                 (reply ctx-atom e)))))))
   (deftest missing-response
     (is (= r98 "Missing response")))
-  )
 
 (defn waitforit [agent-value ctx-atom]
   (clear-ensure-response! ctx-atom)
