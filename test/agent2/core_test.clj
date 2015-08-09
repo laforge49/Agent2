@@ -172,17 +172,15 @@
   (deftest missing-response
     (is (= r98 "Missing response")))
 
+(def takes2 (agent nil))
+(defn activate [ctx-atom] (reply ctx-atom 1024))
 (defn waitforit [agent-value ctx-atom]
   (clear-ensure-response! ctx-atom)
   (set-agent-value! ctx-atom ctx-atom))
-(def coordinate (agent nil))
-(def p (request-promise coordinate waitforit))
-(defn hereitcomes [agent-value ctx-atom arg-value]
-  (reply agent-value arg-value))
-(signal coordinate hereitcomes 64000)
-(def wegotit @p)
-(deftest coordination
-  (is (= wegotit 64000)))
+(future (Thread/sleep 1000) (send takes2 activate))
+(def took2 (request-call takes2 waitforit))
+(deftest coordinate
+  (is (= took2 1024)))
 
 (defn exception-result
   [agent-value ctx-atom]

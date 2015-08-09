@@ -378,7 +378,7 @@ rather than for a request. Rather, the exception is simply thrown."
 
 ;;# request-promise
 
-(defn request-promise
+(defn- request-promise
   "Sends a function to an agent and returns a promise for the result:
 
      ag   - The target agent.
