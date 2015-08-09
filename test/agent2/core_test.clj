@@ -2,6 +2,13 @@
   (:require [clojure.test :refer :all]
             [agent2.core :refer :all]))
 
+
+(defn catcher
+  [f]
+  (try (f)
+       nil
+       (catch Throwable t t)))
+
 (defn inc-state [agent-value ctx-atom]
   (set-agent-value! ctx-atom (+ 1 agent-value))
   )
@@ -20,17 +27,19 @@
 (deftest promise-request
   (is (= 23 r22)))
 
-(def a33 (agent 33))
 (defn ignore-result [result])
-(defn check33 [agent-value ctx-atom]
-  (request ctx-atom a33 return-state () ignore-result)
-  (request ctx-atom a33 return-state () ignore-result)
-  (request ctx-atom a33 return-state () ignore-result)
+(comment
+  (def a33 (agent 33))
+  (defn check33 [agent-value ctx-atom]
+    (request ctx-atom a33 return-state () ignore-result)
+    (request ctx-atom a33 return-state () ignore-result)
+    (request ctx-atom a33 return-state () ignore-result)
+    )
+  (def a34 (agent 34))
+  (def r34 (.getMessage @(request-promise a34 check33)))
+  (deftest missing-response2
+    (is (= r34 "Missing response")))
   )
-(def a34 (agent 34))
-(def r34 (.getMessage @(request-promise a34 check33)))
-(deftest missing-response2
-  (is (= r34 "Missing response")))
 
 (def a43 (agent 43))
 (defn check43 [agent-value ctx-atom]
@@ -112,7 +121,7 @@
         (fn [agent-value ctx-atom]
           (request ctx-atom
                    b4
-                   (fn [agent-value ctx-atom] (reply 42)) ()
+                   (fn [agent-value ctx-atom] (reply ctx-atom 42)) ()
                    dbz-rsp)))
 (def q4 (deref p4 200 nil))
 (deftest reply-error-handler-4
@@ -168,15 +177,17 @@
 (deftest reply-error-handler-7
   (is (= q7 "got exception")))
 
-(def a98 (agent 98))
-(def r98 (.getMessage @(request-promise a98
-                                        (fn [agent-value ctx-atom]
-                                          (set-exception-handler!
-                                            ctx-atom
-                                            (fn [e]
-                                              (reply ctx-atom e)))))))
-(deftest missing-response
-  (is (= r98 "Missing response")))
+(comment
+  (def a98 (agent 98))
+  (def r98 (.getMessage @(request-promise a98
+                                          (fn [agent-value ctx-atom]
+                                            (set-exception-handler!
+                                              ctx-atom
+                                              (fn [e]
+                                                (reply ctx-atom e)))))))
+  (deftest missing-response
+    (is (= r98 "Missing response")))
+  )
 
 (defn waitforit [agent-value ctx-atom]
   (clear-ensure-response! ctx-atom)
@@ -189,3 +200,10 @@
 (def wegotit @p)
 (deftest coordination
   (is (= wegotit 64000)))
+
+(defn exception-result
+  [agent-value ctx-atom]
+  (reply ctx-atom (Exception. "exception as value")))
+(def exr (.getMessage (request-call (agent nil) exception-result)))
+(deftest exception-as-result
+  (is (= exr "exception as value")))

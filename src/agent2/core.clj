@@ -190,6 +190,15 @@ Default value is Integer/MAX_VALUE."
          (catch Exception e (exception-reply ctx-atom exception)))
        (exception-reply ctx-atom exception)))))
 
+;;# wrap
+
+(defn wrap
+  "Wrap throwables."
+  [value]
+  (if (instance? Throwable value)
+    ^:wrapped [value]
+    value))
+
 ;;# process-operation
 
 (defn- process-operation
@@ -328,7 +337,7 @@ further responses be processed."
            src-ctx-atom (let [fr (context-get ctx-atom :reply)
                               src-agent (:agent @src-ctx-atom)]
                           (send src-agent process-response [src-ctx-atom (list fr v)]))
-           prom (deliver prom v)))))))
+           prom (deliver prom (wrap v))))))))
 
 ;;# exception-processor
 
@@ -379,7 +388,8 @@ rather than for a request. Rather, the exception is simply thrown."
 The function f is invoked with the target agent's value and an
 atom holding the context map pre-pended to its list of args.
 
-Should f throw an exception, it is returned as a result via the promise."
+Should f throw an exception, it is returned as a result via the promise,
+but wrapped in a vector with the :wrapped metadata flag set."
 
   [ag f & args]
   (let [prom (promise)]
@@ -407,5 +417,7 @@ rethrows it."
 
   [ag f & args]
   (let [r @(apply request-promise ag f args)]
-    (if (instance? Throwable r) (throw r))
-    r))
+    (cond
+      (instance? Throwable r) (throw r)
+      (:wrapped (meta r)) (first r)
+      :else r)))
