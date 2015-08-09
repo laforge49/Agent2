@@ -1,5 +1,8 @@
 # agent2
+
 2-way non-blocking messags for [Clojure Agents](http://clojure.org/agents).
+
+[![Clojars Project](http://clojars.org/org.clojars.laforge49/agent2/latest-version.svg)](http://clojars.org/org.clojars.laforge49/agent2)
 
 References in Clojure are generally to immutable values. Clojure
 supports 4 types of references which differ in the mechanisms used
