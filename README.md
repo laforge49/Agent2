@@ -41,18 +41,20 @@ The JActor2 and agent2 projects also do not scale across multiple JVMs.)
 
 We begin with a request function that replies with the value of the agent it was sent to:
 
-    (ns agent2.examples
-      (:require [clojure.test :refer :all]
-                [agent2.core :refer :all]))
+```clojure
+(ns agent2.examples
+  (:require [clojure.test :refer :all]
+            [agent2.core :refer :all]))
 
-    (defn get-agent-value
-      [agent-value ctx-atom]
-      (reply ctx-atom agent-value))
+(defn get-agent-value
+  [agent-value ctx-atom]
+  (reply ctx-atom agent-value))
 
-    (def agent42 (agent 42))
-    (def r42 (request-call agent42 get-agent-value))
-    (deftest test-get-agent-value
-      (is (= r42 42)))
+(def agent42 (agent 42))
+(def r42 (request-call agent42 get-agent-value))
+(deftest test-get-agent-value
+  (is (= r42 42)))
+```
 
 The first argument passed to the get-agent-value function is the value of the agent.
 But for replies to work, we introduce a context, ctx-atom, which is passed as the
@@ -67,16 +69,18 @@ Blocking to receive a reply is not something you want to do from
 within an agent, as this would tie up a thread in the agent threadpool.
 So lets look at an example where one agent sends a request to another:
 
-    (defn get-indirect
-      [_ ctx-atom agnt]
-      (request ctx-atom agnt
-               get-agent-value ()
-               (fn [result] (reply ctx-atom result))))
+```clojure
+(defn get-indirect
+  [_ ctx-atom agnt]
+  (request ctx-atom agnt
+           get-agent-value ()
+           (fn [result] (reply ctx-atom result))))
 
-    (def agent99 (agent nil))
-    (def r99 @(request-call agent99 get-indirect agent42))
-    (deftest test-get-indirect
-      (is (= r99 42)))
+(def agent99 (agent nil))
+(def r99 @(request-call agent99 get-indirect agent42))
+(deftest test-get-indirect
+  (is (= r99 42)))
+```
 
 The get-indirect function uses request to send the get-agent-value
 to another agent and then return the result. The request function
